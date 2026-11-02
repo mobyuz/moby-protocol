@@ -1,0 +1,34 @@
+{
+  "name": "@mobyuz/moby-protocol",
+  "version": "0.1.0",
+  "description": "Generated TypeScript types, state transitions, and JSON Schema for Moby",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mobyuz/moby-protocol.git"
+  },
+  "engines": { "node": "24.13.0", "npm": "11.6.2" },
+  "packageManager": "npm@11.6.2",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./schema/*": "./schema/*.schema.json"
+  },
+  "files": ["dist", "schema", "CHANGELOG.md", "LICENSE"],
+  "publishConfig": { "registry": "https://npm.pkg.github.com" },
+  "scripts": {
+    "generate": "cargo run --locked --features generate --bin generate --",
+    "generate:check": "cargo run --locked --features generate --bin generate -- --check",
+    "build": "tsc -p tsconfig.json",
+    "test:types": "tsc -p tsconfig.test.json",
+    "test": "npm run build && npm run test:types && node --test tests/*.test.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "prepack": "npm run generate:check && npm run build"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "typescript": "7.0.2"
+  }
+}

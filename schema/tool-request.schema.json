@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolRequest",
+  "description": "Declarative intent only. Every argument references a local registry entry.\n\nIDs are not authorization: the desktop must resolve them through its own\nallowlist and registries before invoking an executor. No raw paths, commands,\nsearch expressions, or reminder content cross this tool boundary in v0.1.0.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "tool": {
+          "type": "string",
+          "const": "git_status"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "project_id"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "app_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "tool": {
+          "type": "string",
+          "const": "open_app"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "app_id"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "tool": {
+          "type": "string",
+          "const": "open_project"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "project_id"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "query_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "tool": {
+          "type": "string",
+          "const": "search_files"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "project_id",
+        "query_id"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "reminder_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "tool": {
+          "type": "string",
+          "const": "create_reminder"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "reminder_id"
+      ]
+    }
+  ],
+  "x-protocol-version": "0.1.0",
+  "$defs": {
+    "StableId": {
+      "description": "An opaque registry key: 1-64 ASCII characters, beginning with a lowercase\nletter and then containing only lowercase letters, digits, `_`, or `-`.\nTypeScript represents this as a string; validate untrusted JSON at runtime.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    }
+  }
+}

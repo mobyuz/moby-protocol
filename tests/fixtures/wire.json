@@ -1,0 +1,27 @@
+{
+  "expressions": ["idle", "listening", "thinking", "speaking", "happy", "confused", "error", "muted", "disconnected"],
+  "chat_request": { "text": "Check the desk project" },
+  "chat_response": { "reply": "Checking your project.", "expression": "thinking", "tool_request": { "tool": "git_status", "project_id": "desk-project" } },
+  "chat_response_without_tool": { "reply": "Hello!", "expression": "happy" },
+  "chat_response_null_tool": { "reply": "Hello!", "expression": "happy", "tool_request": null },
+  "api_error": { "code": "backend_unavailable", "message": "The backend is unavailable.", "request_id": "req-example-001" },
+  "tools": [
+    { "tool": "git_status", "project_id": "desk-project" },
+    { "tool": "open_app", "app_id": "editor" },
+    { "tool": "open_project", "project_id": "desk-project" },
+    { "tool": "search_files", "project_id": "desk-project", "query_id": "source-files" },
+    { "tool": "create_reminder", "reminder_id": "stretch-break" }
+  ],
+  "invalid_ids": ["", "..", "../secret", "a/../b", "C:\\Users\\private", "C:relative", "\\\\server\\share", "/etc/passwd", "~/project", "file:///tmp/project", "%2e%2e", "$(whoami)", "a;b", "a b", "a\nb", "desk\n", "desk\r", "desk\r\n", "desk\u2028", "desk\u0000", "UPPER", "-start", "0start", "café", "a.b"],
+  "transition_rows": [
+    [true, true, true, false, true, true, true, true, true],
+    [true, true, true, false, false, false, true, true, true],
+    [true, false, true, true, true, true, true, true, true],
+    [true, true, false, true, true, true, true, true, true],
+    [true, true, true, false, true, false, true, true, true],
+    [true, true, true, false, false, true, true, true, true],
+    [true, true, true, false, false, false, true, true, true],
+    [true, false, false, false, false, false, true, true, true],
+    [true, false, false, false, false, false, true, true, true]
+  ]
+}

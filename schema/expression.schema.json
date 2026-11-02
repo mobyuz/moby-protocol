@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Expression",
+  "description": "Face states remain available locally when the backend is unreachable.",
+  "type": "string",
+  "enum": [
+    "idle",
+    "listening",
+    "thinking",
+    "speaking",
+    "happy",
+    "confused",
+    "error",
+    "muted",
+    "disconnected"
+  ],
+  "x-protocol-version": "0.1.0"
+}

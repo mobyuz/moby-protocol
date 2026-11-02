@@ -1,0 +1,13 @@
+/target/
+/node_modules/
+/dist/
+/.release/
+/.tools/
+*.tgz
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
