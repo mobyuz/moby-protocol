@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+  publish:
+    if: github.repository == 'mobyuz/moby-protocol'
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Release only commits on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.6.2
+      - name: Install locked JavaScript dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Pack verified artifacts
+        run: npm pack
+      - name: Validate tag and prepare release notes
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/check-release.mjs "$RELEASE_TAG" --write-notes
+      - name: Create draft release with package and JSON Schemas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PACKAGE_TARBALL: ${{ steps.metadata.outputs.tarball }}
+        run: >-
+          gh release create "$RELEASE_TAG" "$PACKAGE_TARBALL" schema/*.schema.json
+          --repo "$GITHUB_REPOSITORY" --verify-tag --draft
+          --title "$RELEASE_TAG" --notes-file .release/notes.md
+      - name: Publish npm package to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          PACKAGE_TARBALL: ${{ steps.metadata.outputs.tarball }}
+        run: npm publish "./$PACKAGE_TARBALL" --registry=https://npm.pkg.github.com
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
