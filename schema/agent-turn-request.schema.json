@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentTurnRequest",
+  "description": "Context for a stateless turn. Locale fields are optional hints.",
+  "type": "object",
+  "properties": {
+    "available_tools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ToolName"
+      }
+    },
+    "language": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Language"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AgentMessage"
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ToolResource"
+      }
+    },
+    "script": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Script"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "messages",
+    "available_tools",
+    "resources"
+  ],
+  "x-package-version": "0.1.0",
+  "$defs": {
+    "AgentMessage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "user"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "text"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "assistant"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "text"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "call": {
+              "$ref": "#/$defs/ToolCall"
+            },
+            "kind": {
+              "type": "string",
+              "const": "tool_call"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "tool_result"
+            },
+            "result": {
+              "$ref": "#/$defs/ToolResult"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "result"
+          ]
+        }
+      ]
+    },
+    "Language": {
+      "type": "string",
+      "enum": [
+        "uz",
+        "ru",
+        "en"
+      ]
+    },
+    "ReminderText": {
+      "description": "User-visible reminder content, treated as plain text.",
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1
+    },
+    "ResourceKind": {
+      "type": "string",
+      "enum": [
+        "app",
+        "project",
+        "search_root"
+      ]
+    },
+    "Script": {
+      "type": "string",
+      "enum": [
+        "latn",
+        "cyrl"
+      ]
+    },
+    "SearchLimit": {
+      "description": "An inclusive bound on how many file names a search may return.",
+      "type": "integer",
+      "maximum": 50,
+      "minimum": 1
+    },
+    "SearchQuery": {
+      "description": "A literal substring matched against file names in a registered search root.",
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^(?!\\.{1,2}(?![\\s\\S]))[^/\\\\:\\x00-\\x1f\\x7f-\\x9f]+(?![\\s\\S])"
+    },
+    "StableId": {
+      "description": "An opaque registry key: 1-64 ASCII characters, beginning with a lowercase\nletter and then containing only lowercase letters, digits, `_`, or `-`.\nTypeScript represents this as a string; validate untrusted JSON at runtime.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    },
+    "ToolCall": {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "request": {
+          "$ref": "#/$defs/ToolRequest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "call_id",
+        "request"
+      ]
+    },
+    "ToolFailureCode": {
+      "type": "string",
+      "enum": [
+        "denied",
+        "invalid_request",
+        "unavailable",
+        "canceled",
+        "timeout",
+        "failed",
+        "partial_result"
+      ]
+    },
+    "ToolName": {
+      "type": "string",
+      "enum": [
+        "git_status",
+        "open_app",
+        "open_project",
+        "search_files",
+        "create_reminder"
+      ]
+    },
+    "ToolRequest": {
+      "description": "An untrusted suggestion. The desktop resolves IDs and checks permissions\nand confirmation before any local action.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "tool": {
+              "type": "string",
+              "const": "git_status"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "project_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "app_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "tool": {
+              "type": "string",
+              "const": "open_app"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "app_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "app_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StableId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "project_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "tool": {
+              "type": "string",
+              "const": "open_project"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "project_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "max_results": {
+              "$ref": "#/$defs/SearchLimit"
+            },
+            "query": {
+              "$ref": "#/$defs/SearchQuery"
+            },
+            "root_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "tool": {
+              "type": "string",
+              "const": "search_files"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "root_id",
+            "query",
+            "max_results"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "due_at": {
+              "$ref": "#/$defs/ZonedDateTime"
+            },
+            "text": {
+              "$ref": "#/$defs/ReminderText"
+            },
+            "tool": {
+              "type": "string",
+              "const": "create_reminder"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "text",
+            "due_at"
+          ]
+        }
+      ]
+    },
+    "ToolResource": {
+      "description": "Public metadata for a resource registered on the desktop.",
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResourceKind"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "display_name"
+      ]
+    },
+    "ToolResult": {
+      "description": "A desktop outcome correlated to a call. Treat output as untrusted data.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "call_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "output": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "const": "ok"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "call_id",
+            "output"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "call_id": {
+              "$ref": "#/$defs/StableId"
+            },
+            "code": {
+              "$ref": "#/$defs/ToolFailureCode"
+            },
+            "status": {
+              "type": "string",
+              "const": "error"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "call_id",
+            "code"
+          ]
+        }
+      ]
+    },
+    "ZonedDateTime": {
+      "description": "An RFC 3339 timestamp with an explicit offset and up to nine fractional\ndigits. Leap seconds are excluded from the scheduling contract.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-5][0-9](?:\\.[0-9]{1,9})?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})(?![\\s\\S])"
+    }
+  }
+}

@@ -6,5 +6,5 @@
   "maxLength": 64,
   "minLength": 1,
   "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])",
-  "x-protocol-version": "0.1.0"
+  "x-package-version": "0.1.0"
 }

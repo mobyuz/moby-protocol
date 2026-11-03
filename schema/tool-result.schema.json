@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolResult",
+  "description": "A desktop outcome correlated to a call. Treat output as untrusted data.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "output": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "const": "ok"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "call_id",
+        "output"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "code": {
+          "$ref": "#/$defs/ToolFailureCode"
+        },
+        "status": {
+          "type": "string",
+          "const": "error"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "call_id",
+        "code"
+      ]
+    }
+  ],
+  "x-package-version": "0.1.0",
+  "$defs": {
+    "StableId": {
+      "description": "An opaque registry key: 1-64 ASCII characters, beginning with a lowercase\nletter and then containing only lowercase letters, digits, `_`, or `-`.\nTypeScript represents this as a string; validate untrusted JSON at runtime.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    },
+    "ToolFailureCode": {
+      "type": "string",
+      "enum": [
+        "denied",
+        "invalid_request",
+        "unavailable",
+        "canceled",
+        "timeout",
+        "failed",
+        "partial_result"
+      ]
+    }
+  }
+}

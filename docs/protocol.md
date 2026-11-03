@@ -1,7 +1,7 @@
 # Protocol 0.1.0
 
 Rust definitions in `src/` are authoritative. Generated schemas use JSON Schema
-2020-12 in deserialization mode, include `x-protocol-version`, and reject extra
+2020-12 in deserialization mode, include `x-package-version`, and reject extra
 object fields. The JSON contract uses snake_case.
 
 ## Stable IDs and tool fields
@@ -10,28 +10,63 @@ An ID is 1-64 ASCII characters, begins with `a`-`z`, and then contains only
 lowercase letters, digits, `_`, or `-`. Both construction and deserialization
 validate it. Paths, dotted names, URIs, percent escapes, whitespace, Unicode,
 and shell syntax are rejected. Schema validation uses a strict end-of-input
-assertion to reject final newlines too. The private inner string prevents Rust
-callers from constructing invalid IDs without the validator.
+assertion to reject final newlines too. Desktop registries can expose lowercase
+UUIDs with a type prefix such as `proj_`, `app_`, or `root_`. For example,
+`proj_123e4567-e89b-42d3-a456-426614174000` works regardless of the UUID's
+initial character.
 
-| Tool | Required fields | Local resolution |
+| Tool | Fields | Local behavior |
 | --- | --- | --- |
 | `git_status` | `project_id` | Allowlisted project |
 | `open_app` | `app_id` | Allowlisted application |
-| `open_project` | `project_id` | Allowlisted project |
-| `search_files` | `project_id`, `query_id` | Project plus registered saved search |
-| `create_reminder` | `reminder_id` | Registered reminder definition |
+| `open_project` | `project_id`, optional `app_id` | Allowlisted project and optional editor |
+| `search_files` | `root_id`, `query`, `max_results` | Literal filename search within a registered root |
+| `create_reminder` | `text`, `due_at` | Local reminder with on-screen confirmation |
 
 Every row also requires the `tool` discriminator. Unknown tools, missing fields,
 additional fields, and invalid IDs fail Rust deserialization and JSON Schema
-validation. Valid syntax does not establish registry membership or permission.
-Desktop consumers must independently check the allowlist and project registry.
-All real executors remain outside this repository.
+validation. The desktop checks local registry membership and permissions and
+collects on-screen confirmation where required before invoking any executor.
+An omitted or null `app_id` selects the desktop's default handling.
 
-The IDs for saved searches and reminders are a deliberate initial constraint:
-v0.1.0 carries no free-form query, title, due time, command, or raw path in a tool
-request. A future expansion needs an explicit reviewed contract and version
-decision. `ChatRequest.text` and `ChatResponse.reply` remain free-form chat text;
-they must never be interpreted as commands.
+`query` accepts 1–100 Unicode code points and `max_results` accepts integers
+from 1 to 50. The query rejects slash, backslash, colon, control characters and
+the strings `.` and `..`. Match the query literally against a filename. Resolve
+the search path exclusively from the local `root_id` registry.
+
+`text` for a reminder accepts 1–200 Unicode code points. `due_at` uses RFC 3339
+with seconds and a UTC designator or explicit numeric offset. Fractional seconds
+can carry up to nine digits. Leap seconds are excluded. Enable full `date-time`
+format validation in JSON Schema validators, for example with `ajv-formats`.
+
+## Agent turn
+
+`AgentTurnRequest` carries the message history, the names of available tools,
+and optional language and script hints. Its `resources` list describes the
+desktop's advertised resources by `kind`, `id`, and `display_name`. The kinds
+`app`, `project`, and `search_root` map to `app_id`, `project_id`, and `root_id`.
+Send labels and registry IDs. Keep actual paths in the desktop registry.
+
+`AgentTurnResponse` describes one JSON stream event. A response can send zero
+or more `speech_delta` events, then exactly one terminal `completed`,
+`tool_call`, or `error` event. On completion, use the final `speech_text`,
+optional `display_text`, and `expression_hint`. The desktop applies local
+expression policy and respects hardware mute. If a tool call or error ends the
+stream, discard any provisional speech from that request.
+
+After a tool call, the desktop appends the call and its `ToolResult` to the
+history and sends a fresh request. Use the same `call_id` for the call and
+outcome. Treat tool output and resource labels as untrusted data. The API
+validates history ordering and correlation and enforces request and output
+limits. Keep conversation history on the desktop and process conversation and
+tool content in API memory for the duration of the request. Exclude this
+content from API logs and storage. The desktop enforces permissions, timeouts,
+and confirmation.
+HTTP stream framing belongs in the API's OpenAPI contract.
+
+`UsageInfo` exposes remaining LLM tokens, STT seconds, TTS characters, and
+the quota reset timestamp. `ConsentType` identifies terms, privacy policy, and
+cloud voice consent. See the [decision record](adr/0001-agent-and-tool-wire-contract.md).
 
 ## Expressions and transition policy
 
@@ -62,10 +97,10 @@ connection detection are consumer responsibilities, using `disconnected` locally
 
 ## Versions and compatibility
 
-`PROTOCOL_VERSION` is the full semver package version, not an inferred server
-version. It is exported by Rust and npm and attached to generated schemas.
-HTTP version negotiation is left for the API contract; no unrequested wire
-fields have been added to chat envelopes.
+`PACKAGE_VERSION` matches Cargo, npm, and the semver release tag. Generated
+schemas carry it as `x-package-version`. `PROTOCOL_VERSION` is the integer
+for the desktop and robot handshake. Change it when the device wire contract
+breaks. HTTP route versions are set by the API.
 
 Changing field names, required fields, enum variants, ID validation, rejected
 extra fields, or the transition policy may break consumers. All such breaking
@@ -76,6 +111,7 @@ replace an existing npm version.
 
 TypeScript is structurally typed: an ID is generated as `string`, and extra
 properties can pass through variables. TS annotations cannot replace runtime
-validation. Schema validation occurs after JSON parsing and cannot detect
-duplicate JSON keys that a parser discarded; Rust's Serde decoder rejects
-duplicate fields in known variants.
+validation. Send integer counts in plain integer notation. Rust validates the
+decoded numeric type, while JSON Schema sees only the parsed JavaScript number.
+Rust's Serde decoder also rejects duplicate fields in known variants. JSON
+Schema sees only the fields retained by the JSON parser.

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UsageInfo",
+  "type": "object",
+  "properties": {
+    "llm_tokens_remaining": {
+      "type": "integer",
+      "maximum": 4294967295,
+      "minimum": 0
+    },
+    "reset_at": {
+      "$ref": "#/$defs/ZonedDateTime"
+    },
+    "stt_seconds_remaining": {
+      "type": "integer",
+      "maximum": 4294967295,
+      "minimum": 0
+    },
+    "tts_chars_remaining": {
+      "type": "integer",
+      "maximum": 4294967295,
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "llm_tokens_remaining",
+    "stt_seconds_remaining",
+    "tts_chars_remaining",
+    "reset_at"
+  ],
+  "x-package-version": "0.1.0",
+  "$defs": {
+    "ZonedDateTime": {
+      "description": "An RFC 3339 timestamp with an explicit offset and up to nine fractional\ndigits. Leap seconds are excluded from the scheduling contract.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-5][0-9](?:\\.[0-9]{1,9})?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})(?![\\s\\S])"
+    }
+  }
+}

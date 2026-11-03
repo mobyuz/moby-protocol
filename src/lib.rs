@@ -1,16 +1,31 @@
 //! Shared wire types. This crate describes requests; it never executes tools.
 
+mod agent;
 mod expression;
 mod stable_id;
+mod tool;
+mod zoned_date_time;
 
+pub use agent::{
+    AgentMessage, AgentTurnRequest, AgentTurnResponse, ConsentType, Language, ResourceKind, Script,
+    ToolResource, UsageInfo,
+};
 pub use expression::{Expression, can_transition};
 pub use stable_id::{InvalidStableId, StableId};
+pub use tool::{
+    ReminderText, SearchLimit, SearchQuery, ToolCall, ToolFailureCode, ToolName, ToolRequest,
+    ToolResult,
+};
+pub use zoned_date_time::ZonedDateTime;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Must match the Cargo version, npm version, generated artifacts, and release tag.
-pub const PROTOCOL_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Integer version negotiated by the desktop and robot during their handshake.
+pub const PROTOCOL_VERSION: u32 = 1;
 
 /// Text submitted to the chat API. Limits and authentication belong to the API.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -30,33 +45,6 @@ pub struct ChatResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "generate", ts(optional = nullable))]
     pub tool_request: Option<ToolRequest>,
-}
-
-/// Declarative intent only. Every argument references a local registry entry.
-///
-/// IDs are not authorization: the desktop must resolve them through its own
-/// allowlist and registries before invoking an executor. No raw paths, commands,
-/// search expressions, or reminder content cross this tool boundary in v0.1.0.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(feature = "generate", derive(ts_rs::TS))]
-#[serde(tag = "tool", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ToolRequest {
-    GitStatus {
-        project_id: StableId,
-    },
-    OpenApp {
-        app_id: StableId,
-    },
-    OpenProject {
-        project_id: StableId,
-    },
-    SearchFiles {
-        project_id: StableId,
-        query_id: StableId,
-    },
-    CreateReminder {
-        reminder_id: StableId,
-    },
 }
 
 /// Public error details. Callers must redact provider errors and credentials.

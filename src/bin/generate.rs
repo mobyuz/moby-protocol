@@ -1,11 +1,13 @@
 use std::{env, error::Error, fs, path::Path};
 
 use moby_protocol::{
-    ApiError, ChatRequest, ChatResponse, Expression, PROTOCOL_VERSION, StableId, ToolRequest,
-    can_transition,
+    AgentMessage, AgentTurnRequest, AgentTurnResponse, ApiError, ChatRequest, ChatResponse,
+    ConsentType, Expression, Language, PACKAGE_VERSION, PROTOCOL_VERSION, ReminderText,
+    ResourceKind, Script, SearchLimit, SearchQuery, StableId, ToolCall, ToolFailureCode, ToolName,
+    ToolRequest, ToolResource, ToolResult, UsageInfo, ZonedDateTime, can_transition,
 };
-use schemars::{JsonSchema, generate::SchemaSettings};
-use serde_json::json;
+use schemars::{JsonSchema, Schema, generate::SchemaSettings, transform::RecursiveTransform};
+use serde_json::{Value, json};
 use ts_rs::{Config, TS};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -14,9 +16,18 @@ fn schema<T: JsonSchema>() -> Result<String> {
     // Deserialization includes optional/null fields accepted by serde.
     let mut schema = SchemaSettings::draft2020_12()
         .for_deserialize()
+        .with_transform(RecursiveTransform(|schema: &mut Schema| {
+            // Bounds express these integers without validator-specific formats.
+            if matches!(
+                schema.get("format").and_then(Value::as_str),
+                Some("uint8" | "uint32")
+            ) {
+                schema.remove("format");
+            }
+        }))
         .into_generator()
         .into_root_schema_for::<T>();
-    schema.insert("x-protocol-version".into(), json!(PROTOCOL_VERSION));
+    schema.insert("x-package-version".into(), json!(PACKAGE_VERSION));
     Ok(format!("{}\n", serde_json::to_string_pretty(&schema)?))
 }
 
@@ -26,22 +37,45 @@ fn artifacts() -> Result<Vec<(String, String)>> {
         String::from("// Generated from Rust. Run npm run generate; do not edit.\n\n");
     let config = Config::new();
     macro_rules! export {
-        ($ty:ty, $name:literal) => {{
-            outputs.push((format!("schema/{}.schema.json", $name), schema::<$ty>()?));
+        ($ty:ty) => {{
             typescript.push_str("export ");
             typescript.push_str(&<$ty>::decl(&config));
             typescript.push_str("\n\n");
         }};
+        ($ty:ty, $name:literal) => {{
+            outputs.push((format!("schema/{}.schema.json", $name), schema::<$ty>()?));
+            export!($ty);
+        }};
     }
     export!(StableId, "stable-id");
     export!(Expression, "expression");
+    export!(ZonedDateTime);
+    export!(SearchQuery);
+    export!(SearchLimit);
+    export!(ReminderText);
+    export!(ToolName);
     export!(ChatRequest, "chat-request");
     export!(ToolRequest, "tool-request");
+    export!(ToolCall);
+    export!(ToolFailureCode);
+    export!(ToolResult, "tool-result");
     export!(ChatResponse, "chat-response");
     export!(ApiError, "api-error");
+    export!(Language, "language");
+    export!(Script, "script");
+    export!(ConsentType, "consent-type");
+    export!(UsageInfo, "usage-info");
+    export!(ResourceKind);
+    export!(ToolResource);
+    export!(AgentMessage);
+    export!(AgentTurnRequest, "agent-turn-request");
+    export!(AgentTurnResponse, "agent-turn-response");
 
     typescript.push_str(&format!(
-        "export const PROTOCOL_VERSION = {PROTOCOL_VERSION:?} as const;\n\n"
+        "export const PACKAGE_VERSION = {PACKAGE_VERSION:?} as const;\n\n"
+    ));
+    typescript.push_str(&format!(
+        "export const PROTOCOL_VERSION = {PROTOCOL_VERSION} as const;\n\n"
     ));
     let expressions = Expression::ALL
         .iter()
