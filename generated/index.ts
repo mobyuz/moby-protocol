@@ -46,9 +46,46 @@ export type AgentTurnRequest = { messages: Array<AgentMessage>, available_tools:
 
 export type AgentTurnResponse = { "event": "speech_delta", text: string, } | { "event": "tool_call", call: ToolCall, } | { "event": "completed", speech_text: string, display_text?: string | null, expression_hint: Expression, } | { "event": "error", error: ApiError, };
 
+export type ControlVersion = number;
+
+export type EventKind = "event";
+
+export type ResponseKind = "response";
+
+export type Hello = { device_id: StableId, hw_rev: string, fw_version: string, protocol_version: number, capabilities: Array<StableId>, mute: boolean, };
+
+export type HelloConfig = Record<symbol, never>;
+
+export type HelloAck = { accepted: boolean, session_id?: StableId | null, config: HelloConfig, };
+
+export type Heartbeat = { state: Expression, mute: boolean, uptime_ms: number, };
+
+export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, };
+
 export const PACKAGE_VERSION = "0.1.0" as const;
 
 export const PROTOCOL_VERSION = 1 as const;
+
+export const USB = {
+  FRAME_VERSION: 1,
+  DELIMITER: 0,
+  HEADER_LEN: 12,
+  CRC_LEN: 4,
+  MAX_PAYLOAD_LEN: 1024,
+  MAX_DECODED_LEN: 1040,
+  MAX_ENCODED_LEN: 1045,
+  MAX_WIRE_LEN: 1046,
+  VERSION_OFFSET: 0,
+  KIND_OFFSET: 1,
+  FLAGS_OFFSET: 2,
+  RESERVED_OFFSET: 3,
+  STREAM_ID_OFFSET: 4,
+  SEQUENCE_OFFSET: 6,
+  LENGTH_OFFSET: 10,
+  CONTROL: 1,
+  ROBOT_AUDIO: 2,
+  DESKTOP_AUDIO: 3,
+} as const;
 
 export const EXPRESSIONS = ["idle", "listening", "thinking", "speaking", "happy", "confused", "error", "muted", "disconnected"] as const satisfies readonly Expression[];
 

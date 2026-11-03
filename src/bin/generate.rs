@@ -4,7 +4,7 @@ use moby_protocol::{
     AgentMessage, AgentTurnRequest, AgentTurnResponse, ApiError, ChatRequest, ChatResponse,
     ConsentType, Expression, Language, PACKAGE_VERSION, PROTOCOL_VERSION, ReminderText,
     ResourceKind, Script, SearchLimit, SearchQuery, StableId, ToolCall, ToolFailureCode, ToolName,
-    ToolRequest, ToolResource, ToolResult, UsageInfo, ZonedDateTime, can_transition,
+    ToolRequest, ToolResource, ToolResult, UsageInfo, ZonedDateTime, can_transition, usb,
 };
 use schemars::{JsonSchema, Schema, generate::SchemaSettings, transform::RecursiveTransform};
 use serde_json::{Value, json};
@@ -70,6 +70,14 @@ fn artifacts() -> Result<Vec<(String, String)>> {
     export!(AgentMessage);
     export!(AgentTurnRequest, "agent-turn-request");
     export!(AgentTurnResponse, "agent-turn-response");
+    export!(usb::ControlVersion);
+    export!(usb::EventKind);
+    export!(usb::ResponseKind);
+    export!(usb::Hello);
+    export!(usb::HelloConfig);
+    export!(usb::HelloAck);
+    export!(usb::Heartbeat);
+    export!(usb::ControlMessage, "usb-control");
 
     typescript.push_str(&format!(
         "export const PACKAGE_VERSION = {PACKAGE_VERSION:?} as const;\n\n"
@@ -77,6 +85,40 @@ fn artifacts() -> Result<Vec<(String, String)>> {
     typescript.push_str(&format!(
         "export const PROTOCOL_VERSION = {PROTOCOL_VERSION} as const;\n\n"
     ));
+    let usb_constants = [
+        ("FRAME_VERSION", usb::FRAME_VERSION.into()),
+        ("DELIMITER", usb::DELIMITER.into()),
+        ("HEADER_LEN", usb::HEADER_LEN),
+        ("CRC_LEN", usb::CRC_LEN),
+        ("MAX_PAYLOAD_LEN", usb::MAX_PAYLOAD_LEN),
+        ("MAX_DECODED_LEN", usb::MAX_DECODED_LEN),
+        ("MAX_ENCODED_LEN", usb::MAX_ENCODED_LEN),
+        ("MAX_WIRE_LEN", usb::MAX_WIRE_LEN),
+        ("VERSION_OFFSET", usb::VERSION_OFFSET),
+        ("KIND_OFFSET", usb::KIND_OFFSET),
+        ("FLAGS_OFFSET", usb::FLAGS_OFFSET),
+        ("RESERVED_OFFSET", usb::RESERVED_OFFSET),
+        ("STREAM_ID_OFFSET", usb::STREAM_ID_OFFSET),
+        ("SEQUENCE_OFFSET", usb::SEQUENCE_OFFSET),
+        ("LENGTH_OFFSET", usb::LENGTH_OFFSET),
+        ("CONTROL", usb::FrameKind::Control as usize),
+        ("ROBOT_AUDIO", usb::FrameKind::RobotAudio as usize),
+        ("DESKTOP_AUDIO", usb::FrameKind::DesktopAudio as usize),
+    ];
+    let mut usb_header = format!(
+        "/* Generated from Rust. Run npm run generate. */\n\
+         #ifndef MOBY_USB_H\n#define MOBY_USB_H\n\n\
+         #define MOBY_USB_PROTOCOL_VERSION {PROTOCOL_VERSION}u\n"
+    );
+    typescript.push_str("export const USB = {\n");
+    for (name, value) in usb_constants {
+        typescript.push_str(&format!("  {name}: {value},\n"));
+        usb_header.push_str(&format!("#define MOBY_USB_{name} {value}u\n"));
+    }
+    typescript.push_str("} as const;\n\n");
+    usb_header.push_str("\n#endif /* MOBY_USB_H */\n");
+    outputs.push(("include/moby_usb.h".into(), usb_header));
+
     let expressions = Expression::ALL
         .iter()
         .map(serde_json::to_string)

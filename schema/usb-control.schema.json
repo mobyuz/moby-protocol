@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ControlMessage",
+  "description": "Control messages in the first USB v1 host slice.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Hello"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "hello"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/HelloAck"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResponseKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "hello_ack"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Heartbeat"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "heartbeat"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    }
+  ],
+  "x-package-version": "0.1.0",
+  "$defs": {
+    "ControlVersion": {
+      "type": "integer",
+      "const": 1,
+      "minimum": 0
+    },
+    "EventKind": {
+      "type": "string",
+      "enum": [
+        "event"
+      ]
+    },
+    "Expression": {
+      "description": "Face states remain available locally when the backend is unreachable.",
+      "type": "string",
+      "enum": [
+        "idle",
+        "listening",
+        "thinking",
+        "speaking",
+        "happy",
+        "confused",
+        "error",
+        "muted",
+        "disconnected"
+      ]
+    },
+    "Heartbeat": {
+      "type": "object",
+      "properties": {
+        "mute": {
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/$defs/Expression"
+        },
+        "uptime_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "mute",
+        "uptime_ms"
+      ]
+    },
+    "Hello": {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StableId"
+          }
+        },
+        "device_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "fw_version": {
+          "type": "string"
+        },
+        "hw_rev": {
+          "type": "string"
+        },
+        "mute": {
+          "type": "boolean"
+        },
+        "protocol_version": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "device_id",
+        "hw_rev",
+        "fw_version",
+        "protocol_version",
+        "capabilities",
+        "mute"
+      ]
+    },
+    "HelloAck": {
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        },
+        "config": {
+          "$ref": "#/$defs/HelloConfig"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StableId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "accepted",
+        "config"
+      ]
+    },
+    "HelloConfig": {
+      "type": "object",
+      "additionalProperties": false
+    },
+    "ResponseKind": {
+      "type": "string",
+      "enum": [
+        "response"
+      ]
+    },
+    "StableId": {
+      "description": "An opaque registry key: 1-64 ASCII characters, beginning with a lowercase\nletter and then containing only lowercase letters, digits, `_`, or `-`.\nTypeScript represents this as a string; validate untrusted JSON at runtime.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    }
+  }
+}
