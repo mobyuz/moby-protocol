@@ -6,7 +6,7 @@ Rust is the source of truth for types, JSON Schema, the protocol version, and
 state transitions. The npm package is `@mobyuz/moby-protocol`.
 
 The working version is **0.1.0**. A tag and published package are created only
-through the release process below. `LICENSE` and `CODEOWNERS` are placeholders.
+through the release process below. `LICENSE` is a placeholder.
 
 ## Windows setup (PowerShell, x64)
 
@@ -155,8 +155,7 @@ environment and must never enter protocol messages, frontend bundles, or logs.
 
 ## Release
 
-Before the first tag, confirm the license, code-owner team, and protocol
-decisions. Review
+Before the first tag, confirm the license and protocol decisions. Review
 [branch/tag protection](docs/branch-protection.md) and
 [authentication and recovery](docs/authentication.md).
 

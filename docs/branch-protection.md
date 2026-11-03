@@ -14,8 +14,9 @@ For `main`, configure a branch ruleset that:
 - Requires the branch to be up to date before merge, or use a merge queue only
   after adding the required `merge_group` trigger to CI.
 - Blocks force pushes and deletions; restricts bypass to documented recovery.
-- Requires code-owner review only after `.github/CODEOWNERS` has a confirmed,
-  existing team with write access. Its current commented entry is a placeholder.
+
+Use the general approving review rule while the sole code owner also authors
+changes. A separate reviewer with write access can approve those pull requests.
 
 For `v*` tags, configure a tag ruleset restricting creation to release
 maintainers and blocking updates/deletions. Releases must tag a reviewed commit
