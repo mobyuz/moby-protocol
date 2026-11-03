@@ -22,5 +22,6 @@ bump, including during 0.x. Each consuming repository upgrades in its own PR.
   and optional app selection when opening a project.
 - Windows/Linux CI checks, tag-triggered GitHub Packages and GitHub Release
   workflow, pinned toolchains, and private-dependency authentication guidance.
+- GNU General Public License version 3 (`GPL-3.0-only`).
 
 This entry prepares v0.1.0; it does not assert that the tag or package exists.

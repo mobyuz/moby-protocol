@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Generated TypeScript types, state transitions, and JSON Schema for Moby",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mobyuz/moby-protocol.git"

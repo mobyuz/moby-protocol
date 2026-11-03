@@ -6,7 +6,7 @@ Rust is the source of truth for types, JSON Schema, the protocol version, and
 state transitions. The npm package is `@mobyuz/moby-protocol`.
 
 The working version is **0.1.0**. A tag and published package are created only
-through the release process below. `LICENSE` is a placeholder.
+through the release process below.
 
 ## Windows setup (PowerShell, x64)
 
@@ -155,7 +155,7 @@ environment and must never enter protocol messages, frontend bundles, or logs.
 
 ## Release
 
-Before the first tag, confirm the license and protocol decisions. Review
+Before the first tag, confirm the protocol decisions. Review
 [branch/tag protection](docs/branch-protection.md) and
 [authentication and recovery](docs/authentication.md).
 
@@ -181,6 +181,12 @@ pack the package, create a draft release with the npm tarball and JSON Schemas,
 publish to GitHub Packages, and then publish the GitHub Release. The release
 uses `GITHUB_TOKEN` with job-scoped `contents: write` and `packages: write`.
 It never publishes to npmjs.com or crates.io. No release is triggered by `main`.
+
+## License
+
+[GNU General Public License version 3](LICENSE) (`GPL-3.0-only`).
+
+Copyright (c) 2026 Moby contributors.
 
 ## Official references checked
 
