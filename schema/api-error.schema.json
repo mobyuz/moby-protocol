@@ -20,5 +20,5 @@
     "message",
     "request_id"
   ],
-  "x-protocol-version": "0.1.0"
+  "x-package-version": "0.1.0"
 }

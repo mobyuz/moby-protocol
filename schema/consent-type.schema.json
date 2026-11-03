@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConsentType",
+  "type": "string",
+  "enum": [
+    "terms",
+    "privacy_policy",
+    "cloud_voice"
+  ],
+  "x-package-version": "0.1.0"
+}

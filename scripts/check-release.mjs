@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { PROTOCOL_VERSION } from "../dist/index.js";
+import { PACKAGE_VERSION } from "../dist/index.js";
 
 const root = new URL("../", import.meta.url);
 const args = process.argv.slice(2);
@@ -17,7 +17,7 @@ const tag = tags[0] ?? `v${pkg.version}`;
 assert.equal(tag, `v${pkg.version}`, "release tag must match package version");
 assert.equal(pkg.name, "@mobyuz/moby-protocol");
 assert.equal(pkg.repository.url, "git+https://github.com/mobyuz/moby-protocol.git");
-assert.equal(PROTOCOL_VERSION, pkg.version, "generated protocol constant is stale");
+assert.equal(PACKAGE_VERSION, pkg.version, "generated package version is stale");
 assert.equal(cargoVersion, pkg.version, "Cargo/npm versions differ");
 assert.equal(lock.version, pkg.version, "npm lockfile version is stale");
 assert.equal(lock.packages[""].version, pkg.version, "npm root lockfile version is stale");

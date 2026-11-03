@@ -6,7 +6,7 @@ Rust is the source of truth for types, JSON Schema, the protocol version, and
 state transitions. The npm package is `@mobyuz/moby-protocol`.
 
 The working version is **0.1.0**. A tag and published package are created only
-through the release process below. `LICENSE` and `CODEOWNERS` are placeholders.
+through the release process below.
 
 ## Windows setup (PowerShell, x64)
 
@@ -121,16 +121,17 @@ Commit `package-lock.json`; do not use `latest`, ranges, branches, local paths,
 or links to another checkout. Example TypeScript:
 
 ```typescript
-import { PROTOCOL_VERSION, canTransition, type Expression, type ChatResponse } from "@mobyuz/moby-protocol";
+import { canTransition, type AgentTurnResponse, type Expression } from "@mobyuz/moby-protocol";
 
 const state: Expression = "disconnected";
 const canReconnect = canTransition(state, "idle");
-const response: ChatResponse = { reply: "Hello!", expression: "happy" };
+const event: AgentTurnResponse = { event: "completed", speech_text: "Salom!", expression_hint: "happy" };
 ```
 
 Schemas are included in the npm package, for example
 `@mobyuz/moby-protocol/schema/tool-request`. TypeScript provides compile-time
 types; untrusted JSON must be runtime-validated with the schema or Rust decoder.
+Enable full `date-time` validation for tool requests and usage timestamps.
 
 ## Contract and security
 
@@ -138,10 +139,12 @@ types; untrusted JSON must be runtime-validated with the schema or Rust decoder.
 - `ChatResponse`: `{reply, expression, tool_request?}`; missing or null tool
   requests deserialize to `None`, and `None` is omitted when serialized.
 - `ApiError`: `{code, message, request_id}`.
-- `ToolRequest`: internally tagged by `tool`, with exactly the documented
-  fields. All tool arguments are validated stable IDs, never paths or commands.
-- `PROTOCOL_VERSION`: derived from Cargo's package version and checked against
-  npm, the lockfile, schemas, and release tags.
+- `ToolRequest`: tagged by `tool`. Resource references use validated IDs.
+  Filename queries and reminder content have explicit bounds.
+- `AgentTurnRequest` and `AgentTurnResponse`: stateless message history and
+  stream events, including correlated tool calls and results.
+- `PACKAGE_VERSION` matches Cargo, npm, schema metadata, and the release tag.
+  `PROTOCOL_VERSION` is the integer for the robot handshake.
 
 [Protocol details and transition table](docs/protocol.md) explain the chosen
 policy and the local registries consumers must provide. Registry membership,
@@ -152,8 +155,7 @@ environment and must never enter protocol messages, frontend bundles, or logs.
 
 ## Release
 
-Before the first tag, confirm the license, code-owner team, transition policy,
-and registry-only saved-search/reminder design. Review
+Before the first tag, confirm the protocol decisions. Review
 [branch/tag protection](docs/branch-protection.md) and
 [authentication and recovery](docs/authentication.md).
 
@@ -175,16 +177,24 @@ git push origin v0.1.0
 
 Substitute the new version in both tag commands. Tag pushes run the same
 Windows/Linux checks as CI, enforce matching release versions and main ancestry,
-pack the package, create a draft release with the npm tarball and six schemas,
+pack the package, create a draft release with the npm tarball and JSON Schemas,
 publish to GitHub Packages, and then publish the GitHub Release. The release
 uses `GITHUB_TOKEN` with job-scoped `contents: write` and `packages: write`.
 It never publishes to npmjs.com or crates.io. No release is triggered by `main`.
+
+## License
+
+[GNU General Public License version 3](LICENSE) (`GPL-3.0-only`).
+
+Copyright (c) 2026 Moby contributors.
 
 ## Official references checked
 
 - [Serde container attributes](https://serde.rs/container-attrs.html)
 - [Schemars 1.2.3](https://docs.rs/schemars/1.2.3/schemars/)
 - [ts-rs 12.0.1](https://docs.rs/ts-rs/12.0.1/ts_rs/)
+- [time RFC 3339 parsing](https://docs.rs/time/latest/src/time/format_description/well_known/rfc3339.rs.html)
+- [Ajv date-time validation](https://ajv.js.org/packages/ajv-formats.html)
 - [GitHub's npm registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)
 - [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use)
 

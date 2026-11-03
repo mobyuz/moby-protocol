@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Script",
+  "type": "string",
+  "enum": [
+    "latn",
+    "cyrl"
+  ],
+  "x-package-version": "0.1.0"
+}

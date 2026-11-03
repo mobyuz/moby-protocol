@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Language",
+  "type": "string",
+  "enum": [
+    "uz",
+    "ru",
+    "en"
+  ],
+  "x-package-version": "0.1.0"
+}

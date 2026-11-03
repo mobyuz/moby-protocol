@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { PROTOCOL_VERSION } from "@mobyuz/moby-protocol";
+import { PACKAGE_VERSION } from "@mobyuz/moby-protocol";
 
 const script = fileURLToPath(new URL("../scripts/check-release.mjs", import.meta.url));
 function check(tag) {
@@ -13,7 +13,7 @@ function check(tag) {
 }
 
 test("release guard checks real Cargo/npm/lockfile/generated versions and changelog", () => {
-  const result = check(`v${PROTOCOL_VERSION}`);
+  const result = check("v" + PACKAGE_VERSION);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /release metadata matches/);
 });

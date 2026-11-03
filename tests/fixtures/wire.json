@@ -9,9 +9,74 @@
     { "tool": "git_status", "project_id": "desk-project" },
     { "tool": "open_app", "app_id": "editor" },
     { "tool": "open_project", "project_id": "desk-project" },
-    { "tool": "search_files", "project_id": "desk-project", "query_id": "source-files" },
-    { "tool": "create_reminder", "reminder_id": "stretch-break" }
+    { "tool": "open_project", "project_id": "proj_123e4567-e89b-42d3-a456-426614174000", "app_id": "editor" },
+    { "tool": "search_files", "root_id": "desk-project", "query": "o‘qish.md", "max_results": 50 },
+    { "tool": "create_reminder", "text": "Tanaffus", "due_at": "2026-11-03T15:30:00+05:00" },
+    { "tool": "create_reminder", "text": "Напоминание", "due_at": "2028-02-29T23:30:45.123456789Z" }
   ],
+  "invalid_tools": [
+    { "tool": "search_files", "project_id": "desk-project", "query_id": "source-files" },
+    { "tool": "create_reminder", "reminder_id": "stretch-break" },
+    { "tool": "search_files", "root_id": "desk-project", "query": "", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "C:secret", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "../private", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "..\\private", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "..", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "file\n", "max_results": 1 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "file", "max_results": 0 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "file", "max_results": 51 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "file", "max_results": 1.5 },
+    { "tool": "search_files", "root_id": "desk-project", "query": "file", "max_results": "1" },
+    { "tool": "create_reminder", "text": "", "due_at": "2026-11-03T15:30:00Z" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00+05" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00+24:00" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00+05:60" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-02-29T15:30:00Z" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03 15:30:00Z" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2016-12-31T23:59:60Z" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00.1234567890Z" },
+    { "tool": "create_reminder", "text": "test", "due_at": "2026-11-03T15:30:00Z\n" }
+  ],
+  "agent_turn_requests": [
+    {
+      "messages": [{ "kind": "user", "text": "Loyiham git holatini ayt" }],
+      "available_tools": ["git_status"],
+      "resources": [{ "kind": "project", "id": "desk-project", "display_name": "Moby" }],
+      "language": "uz",
+      "script": "latn"
+    },
+    {
+      "messages": [
+        { "kind": "user", "text": "Loyiham git holatini ayt" },
+        { "kind": "tool_call", "call": { "call_id": "call_1", "request": { "tool": "git_status", "project_id": "desk-project" } } },
+        { "kind": "tool_result", "result": { "status": "ok", "call_id": "call_1", "output": "main, no changes" } }
+      ],
+      "available_tools": [],
+      "resources": []
+    }
+  ],
+  "agent_turn_responses": [
+    { "event": "speech_delta", "text": "Loyiha " },
+    { "event": "tool_call", "call": { "call_id": "call_1", "request": { "tool": "git_status", "project_id": "desk-project" } } },
+    { "event": "completed", "speech_text": "Loyiha o‘zgarmagan.", "display_text": "main", "expression_hint": "happy" },
+    { "event": "completed", "speech_text": "Done.", "expression_hint": "idle" },
+    { "event": "error", "error": { "code": "provider_unavailable", "message": "Unavailable", "request_id": "req-1" } }
+  ],
+  "tool_results": [
+    { "status": "ok", "call_id": "call_1", "output": "main, no changes" },
+    { "status": "error", "call_id": "call_2", "code": "denied" },
+    { "status": "error", "call_id": "call_3", "code": "timeout" }
+  ],
+  "languages": ["uz", "ru", "en"],
+  "scripts": ["latn", "cyrl"],
+  "consent_types": ["terms", "privacy_policy", "cloud_voice"],
+  "usage_info": {
+    "llm_tokens_remaining": 4294967295,
+    "stt_seconds_remaining": 60,
+    "tts_chars_remaining": 0,
+    "reset_at": "2026-11-04T00:00:00Z"
+  },
   "invalid_ids": ["", "..", "../secret", "a/../b", "C:\\Users\\private", "C:relative", "\\\\server\\share", "/etc/passwd", "~/project", "file:///tmp/project", "%2e%2e", "$(whoami)", "a;b", "a b", "a\nb", "desk\n", "desk\r", "desk\r\n", "desk\u2028", "desk\u0000", "UPPER", "-start", "0start", "café", "a.b"],
   "transition_rows": [
     [true, true, true, false, true, true, true, true, true],

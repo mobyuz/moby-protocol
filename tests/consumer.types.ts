@@ -1,7 +1,10 @@
 import {
+  PACKAGE_VERSION,
   PROTOCOL_VERSION,
   EXPRESSIONS,
   canTransition,
+  type AgentTurnRequest,
+  type AgentTurnResponse,
   type ApiError,
   type ChatRequest,
   type ChatResponse,
@@ -13,11 +16,20 @@ const expression: Expression = "disconnected";
 const request: ChatRequest = { text: "Hello" };
 const response: ChatResponse = { reply: "Hello", expression: "happy" };
 const nullableResponse: ChatResponse = { ...response, tool_request: null };
-const tool: ToolRequest = { tool: "search_files", project_id: "desk", query_id: "sources" };
+const tool: ToolRequest = { tool: "search_files", root_id: "desk", query: "readme", max_results: 50 };
 const error: ApiError = { code: "unavailable", message: "Unavailable", request_id: "request-1" };
-const version: "0.1.0" = PROTOCOL_VERSION;
+const packageVersion: "0.1.0" = PACKAGE_VERSION;
+const protocolVersion: 1 = PROTOCOL_VERSION;
+const turn: AgentTurnRequest = {
+  messages: [{ kind: "user", text: "Salom" }],
+  available_tools: [],
+  resources: [],
+  language: "uz",
+  script: "latn",
+};
+const event: AgentTurnResponse = { event: "tool_call", call: { call_id: "call_1", request: tool } };
 const allowed: boolean = canTransition(EXPRESSIONS[0], expression);
-void [request, response, nullableResponse, tool, error, version, allowed];
+void [request, response, nullableResponse, tool, error, packageVersion, protocolVersion, turn, event, allowed];
 
 // @ts-expect-error unsupported expression
 const unknownExpression: Expression = "online";

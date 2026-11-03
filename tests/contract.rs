@@ -1,6 +1,7 @@
 use moby_protocol::{
-    ApiError, ChatRequest, ChatResponse, Expression, PROTOCOL_VERSION, StableId, ToolRequest,
-    can_transition,
+    AgentTurnRequest, AgentTurnResponse, ApiError, ChatRequest, ChatResponse, ConsentType,
+    Expression, Language, PACKAGE_VERSION, PROTOCOL_VERSION, Script, StableId, ToolRequest,
+    ToolResult, UsageInfo, can_transition,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -105,16 +106,103 @@ fn all_tools_round_trip_and_reject_extra_fields_missing_ids_and_paths() {
             .keys()
             .filter(|key| *key != "tool")
         {
-            let mut missing = value.clone();
-            missing.as_object_mut().unwrap().remove(key);
-            assert!(serde_json::from_value::<ToolRequest>(missing).is_err());
-            for invalid_id in &invalid_ids {
-                let mut invalid = value.clone();
-                invalid[key] = invalid_id.clone();
-                assert!(serde_json::from_value::<ToolRequest>(invalid).is_err());
+            let optional = value["tool"] == "open_project" && key == "app_id";
+            if !optional {
+                let mut missing = value.clone();
+                missing.as_object_mut().unwrap().remove(key);
+                assert!(serde_json::from_value::<ToolRequest>(missing).is_err());
+            }
+            if key.ends_with("_id") {
+                for invalid_id in &invalid_ids {
+                    if optional && invalid_id.is_null() {
+                        continue;
+                    }
+                    let mut invalid = value.clone();
+                    invalid[key] = invalid_id.clone();
+                    assert!(serde_json::from_value::<ToolRequest>(invalid).is_err());
+                }
             }
         }
     }
+}
+
+#[test]
+fn tool_inputs_enforce_literal_queries_unicode_lengths_and_zoned_dates() {
+    for value in fixtures()["invalid_tools"].as_array().unwrap() {
+        assert!(
+            serde_json::from_value::<ToolRequest>(value.clone()).is_err(),
+            "{value}"
+        );
+    }
+
+    let search = |length| json!({"tool": "search_files", "root_id": "root_moby", "query": "🌐".repeat(length), "max_results": 1});
+    let reminder = |length| json!({"tool": "create_reminder", "text": "🌐".repeat(length), "due_at": "2026-11-03t14:00:00z"});
+    round_trip::<ToolRequest>(&search(100));
+    round_trip::<ToolRequest>(&reminder(200));
+    assert!(serde_json::from_value::<ToolRequest>(search(101)).is_err());
+    assert!(serde_json::from_value::<ToolRequest>(reminder(201)).is_err());
+
+    let default_app = json!({"tool": "open_project", "project_id": "proj_moby"});
+    let mut null_app = default_app.clone();
+    null_app["app_id"] = Value::Null;
+    let decoded: ToolRequest = serde_json::from_value(null_app).unwrap();
+    assert_eq!(serde_json::to_value(decoded).unwrap(), default_app);
+}
+
+#[test]
+fn agent_and_account_contracts_round_trip() {
+    let fixture = fixtures();
+    for value in fixture["agent_turn_requests"].as_array().unwrap() {
+        round_trip::<AgentTurnRequest>(value);
+    }
+    for value in fixture["agent_turn_responses"].as_array().unwrap() {
+        round_trip::<AgentTurnResponse>(value);
+    }
+    for value in fixture["tool_results"].as_array().unwrap() {
+        round_trip::<ToolResult>(value);
+    }
+    for value in fixture["languages"].as_array().unwrap() {
+        round_trip::<Language>(value);
+    }
+    for value in fixture["scripts"].as_array().unwrap() {
+        round_trip::<Script>(value);
+    }
+    for value in fixture["consent_types"].as_array().unwrap() {
+        round_trip::<ConsentType>(value);
+    }
+    round_trip::<UsageInfo>(&fixture["usage_info"]);
+}
+
+#[test]
+fn agent_rejects_unrecognized_roles_tools_and_payload_fields() {
+    let fixture = fixtures();
+    let mut request = fixture["agent_turn_requests"][0].clone();
+    request["resources"][0]["path"] = json!("C:\\private");
+    assert!(serde_json::from_value::<AgentTurnRequest>(request).is_err());
+
+    let mut request = fixture["agent_turn_requests"][0].clone();
+    request["available_tools"][0] = json!("run_shell");
+    assert!(serde_json::from_value::<AgentTurnRequest>(request).is_err());
+
+    let mut request = fixture["agent_turn_requests"][0].clone();
+    request["messages"][0]["kind"] = json!("system");
+    assert!(serde_json::from_value::<AgentTurnRequest>(request).is_err());
+
+    let mut request = fixture["agent_turn_requests"][0].clone();
+    request["language"] = json!("fr");
+    assert!(serde_json::from_value::<AgentTurnRequest>(request).is_err());
+
+    let mut response = fixture["agent_turn_responses"][1].clone();
+    response["call"]["request"]["command"] = json!("whoami");
+    assert!(serde_json::from_value::<AgentTurnResponse>(response).is_err());
+
+    let mut result = fixture["tool_results"][1].clone();
+    result["code"] = json!("unknown");
+    assert!(serde_json::from_value::<ToolResult>(result).is_err());
+
+    let mut usage = fixture["usage_info"].clone();
+    usage["llm_tokens_remaining"] = json!(u64::from(u32::MAX) + 1);
+    assert!(serde_json::from_value::<UsageInfo>(usage).is_err());
 }
 
 #[test]
@@ -178,9 +266,10 @@ fn stable_id_constructor_and_serde_enforce_the_same_boundary() {
 }
 
 #[test]
-fn protocol_version_matches_npm_and_cargo() {
+fn package_version_matches_npm_and_cargo() {
     let package: Value = serde_json::from_str(include_str!("../package.json")).unwrap();
-    assert_eq!(PROTOCOL_VERSION, env!("CARGO_PKG_VERSION"));
-    assert_eq!(package["version"], PROTOCOL_VERSION);
+    assert_eq!(PACKAGE_VERSION, env!("CARGO_PKG_VERSION"));
+    assert_eq!(package["version"], PACKAGE_VERSION);
+    assert_eq!(PROTOCOL_VERSION, 1);
     assert_eq!(package["name"], "@mobyuz/moby-protocol");
 }
