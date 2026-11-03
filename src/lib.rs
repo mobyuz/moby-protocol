@@ -4,6 +4,7 @@ mod agent;
 mod expression;
 mod stable_id;
 mod tool;
+pub mod usb;
 mod zoned_date_time;
 
 pub use agent::{

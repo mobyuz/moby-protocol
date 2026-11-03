@@ -46,13 +46,14 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: node scripts/check-release.mjs "$RELEASE_TAG" --write-notes
-      - name: Create draft release with package and JSON Schemas
+      - name: Create draft release with protocol artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
           PACKAGE_TARBALL: ${{ steps.metadata.outputs.tarball }}
         run: >-
           gh release create "$RELEASE_TAG" "$PACKAGE_TARBALL" schema/*.schema.json
+          include/moby_usb.h tests/fixtures/usb-vectors.tsv
           --repo "$GITHUB_REPOSITORY" --verify-tag --draft
           --title "$RELEASE_TAG" --notes-file .release/notes.md
       - name: Publish npm package to GitHub Packages

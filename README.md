@@ -79,14 +79,20 @@ After editing Rust contract types or transitions:
 ```powershell
 npm.cmd run generate
 npm.cmd test
-git diff -- generated schema
+git diff -- generated schema include
 ```
 
-Commit both generated directories. `generate:check` compares bytes without
+Commit the generated artifacts. `generate:check` compares bytes without
 rewriting files and fails on missing, stale, or unexpected schema files. It uses
 an explicit generator configuration; environment variables cannot alter its
 output. `.gitattributes` preserves LF on Windows. Generation requires the
 `generate` Cargo feature; normal Rust consumers do not pull in `ts-rs`.
+
+The USB host tests share `tests/fixtures/usb-vectors.tsv`. Rust and Node run
+them through the commands above. Ubuntu CI also builds and runs the C host
+test against `include/moby_usb.h`. See the
+[USB v1 decision record](docs/adr/0003-usb-v1-host-framing.md) for the frame
+layout and handshake.
 
 ## Consume a pinned release
 
@@ -177,7 +183,8 @@ git push origin v0.1.0
 
 Substitute the new version in both tag commands. Tag pushes run the same
 Windows/Linux checks as CI, enforce matching release versions and main ancestry,
-pack the package, create a draft release with the npm tarball and JSON Schemas,
+pack the package, create a draft release with the npm tarball, JSON Schemas,
+the USB C header, and wire vectors,
 publish to GitHub Packages, and then publish the GitHub Release. The release
 uses `GITHUB_TOKEN` with job-scoped `contents: write` and `packages: write`.
 It never publishes to npmjs.com or crates.io. No release is triggered by `main`.
