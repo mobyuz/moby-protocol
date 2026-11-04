@@ -62,7 +62,7 @@ export type Heartbeat = { state: Expression, mute: boolean, uptime_ms: number, }
 
 export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, };
 
-export const PACKAGE_VERSION = "0.1.0" as const;
+export const PACKAGE_VERSION = "0.2.0" as const;
 
 export const PROTOCOL_VERSION = 1 as const;
 

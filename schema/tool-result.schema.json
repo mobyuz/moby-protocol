@@ -46,7 +46,7 @@
       ]
     }
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "StableId": {
       "description": "An opaque registry key: 1-64 ASCII characters, beginning with a lowercase\nletter and then containing only lowercase letters, digits, `_`, or `-`.\nTypeScript represents this as a string; validate untrusted JSON at runtime.",

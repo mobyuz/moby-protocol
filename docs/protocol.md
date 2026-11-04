@@ -1,4 +1,4 @@
-# Protocol 0.1.0
+# Protocol 0.2.0
 
 Rust definitions in `src/` are authoritative. Generated schemas use JSON Schema
 2020-12 in deserialization mode, include `x-package-version`, and reject extra

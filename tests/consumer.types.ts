@@ -18,7 +18,7 @@ const response: ChatResponse = { reply: "Hello", expression: "happy" };
 const nullableResponse: ChatResponse = { ...response, tool_request: null };
 const tool: ToolRequest = { tool: "search_files", root_id: "desk", query: "readme", max_results: 50 };
 const error: ApiError = { code: "unavailable", message: "Unavailable", request_id: "request-1" };
-const packageVersion: "0.1.0" = PACKAGE_VERSION;
+const packageVersion: "0.2.0" = PACKAGE_VERSION;
 const protocolVersion: 1 = PROTOCOL_VERSION;
 const turn: AgentTurnRequest = {
   messages: [{ kind: "user", text: "Salom" }],

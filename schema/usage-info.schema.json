@@ -29,7 +29,7 @@
     "tts_chars_remaining",
     "reset_at"
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "ZonedDateTime": {
       "description": "An RFC 3339 timestamp with an explicit offset and up to nine fractional\ndigits. Leap seconds are excluded from the scheduling contract.",

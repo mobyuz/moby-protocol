@@ -5,7 +5,7 @@ independent repository under `mobyuz`; it contains no other Moby repositories.
 Rust is the source of truth for types, JSON Schema, the protocol version, and
 state transitions. The npm package is `@mobyuz/moby-protocol`.
 
-The working version is **0.1.0**. A tag and published package are created only
+The working version is **0.2.0**. A tag and published package are created only
 through the release process below.
 
 ## Windows setup (PowerShell, x64)
@@ -100,7 +100,7 @@ Do this only after the referenced release exists. Rust consumers use a tag:
 
 ```toml
 [dependencies]
-moby-protocol = { git = "https://github.com/mobyuz/moby-protocol", tag = "v0.1.0" }
+moby-protocol = { git = "https://github.com/mobyuz/moby-protocol", tag = "v0.2.0" }
 ```
 
 Commit consumer `Cargo.lock` files. See [authentication](docs/authentication.md)
@@ -119,7 +119,7 @@ Set `NODE_AUTH_TOKEN` in the process environment using a GitHub Packages token
 
 ```powershell
 $env:NODE_AUTH_TOKEN = [System.Net.NetworkCredential]::new('', (Read-Host 'GitHub Packages read token' -AsSecureString)).Password
-npm.cmd install --save-exact @mobyuz/moby-protocol@0.1.0
+npm.cmd install --save-exact @mobyuz/moby-protocol@0.2.0
 Remove-Item Env:\NODE_AUTH_TOKEN
 ```
 
@@ -176,9 +176,9 @@ npm.cmd install --package-lock-only --ignore-scripts --no-audit --no-fund
 npm.cmd run generate
 cargo test --locked --all-targets --all-features
 npm.cmd test
-npm.cmd run check:release -- v0.1.0
-git tag -a v0.1.0 -m 'moby-protocol v0.1.0'
-git push origin v0.1.0
+npm.cmd run check:release -- v0.2.0
+git tag -a v0.2.0 -m 'moby-protocol v0.1.0'
+git push origin v0.2.0
 ```
 
 Substitute the new version in both tag commands. Tag pushes run the same
