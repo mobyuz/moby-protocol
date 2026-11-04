@@ -53,7 +53,8 @@ jobs:
           PACKAGE_TARBALL: ${{ steps.metadata.outputs.tarball }}
         run: >-
           gh release create "$RELEASE_TAG" "$PACKAGE_TARBALL" schema/*.schema.json
-          include/moby_usb.h tests/fixtures/usb-vectors.tsv
+          include/moby_usb.h include/moby_usb_codec.h c/moby_usb_codec.c
+          tests/fixtures/*.tsv
           --repo "$GITHUB_REPOSITORY" --verify-tag --draft
           --title "$RELEASE_TAG" --notes-file .release/notes.md
       - name: Publish npm package to GitHub Packages

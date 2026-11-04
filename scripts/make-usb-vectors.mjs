@@ -252,6 +252,15 @@ function hmacRows() {
   ];
 }
 
+// The independent expectation: tests/fixtures/wire.json, also used by Rust and TypeScript.
+const wire = JSON.parse(await readFile(new URL("wire.json", fixtures), "utf8"));
+function transitionRows() {
+  return [
+    "# from\tallowed (one 0 or 1 per state, in the order of the rows)",
+    ...wire.expressions.map((from, index) => [from, wire.transition_rows[index].map((allowed) => (allowed ? 1 : 0)).join("")].join("\t")),
+  ];
+}
+
 function proofRows() {
   const cases = [
     ["session_proof_1", NONCE_PAIRED, DEVICE, SESSION],
@@ -274,6 +283,7 @@ const outputs = {
   "cobs-vectors.tsv": cobsRows(),
   "hmac-vectors.tsv": hmacRows(),
   "proof-vectors.tsv": proofRows(),
+  "transition-vectors.tsv": transitionRows(),
 };
 
 let stale = false;
