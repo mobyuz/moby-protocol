@@ -42,10 +42,20 @@ format validation in JSON Schema validators, for example with `ajv-formats`.
 ## Agent turn
 
 `AgentTurnRequest` carries the message history, the names of available tools,
-and optional language and script hints. Its `resources` list describes the
+and optional language, script, and `local_time` hints. Its `resources` list describes the
 desktop's advertised resources by `kind`, `id`, and `display_name`. The kinds
 `app`, `project`, and `search_root` map to `app_id`, `project_id`, and `root_id`.
 Send labels and registry IDs. Keep actual paths in the desktop registry.
+
+`local_time` is the user's current time, for example
+`2026-11-05T09:30:00+05:00`. It uses the same RFC 3339 profile as `due_at`: an
+explicit numeric offset or `Z` is required, at most nine fractional digits, and
+at most 35 characters. A value without an offset, a bare date, or free text is
+rejected, as is an unknown sibling field such as a time zone name. The desktop
+sets it on every request when it can read its clock; without it the model has
+no clock and cannot work out a zoned `due_at` from "in an hour" or "tomorrow".
+The API treats the value as data and does not log it. It is optional, and a
+request without it stays valid.
 
 `AgentTurnResponse` describes one JSON stream event. A response can send zero
 or more `speech_delta` events, then exactly one terminal `completed`,
@@ -134,6 +144,17 @@ valid message, a `hello` with eight 64-character capabilities, fits the
 | `pair_button_confirmed`, `pair_reset` | event | robot | none |
 | `command_ok` | response | robot | none |
 | `command_error` | response | robot | `code`, `detail` |
+
+### Desktop keepalive
+
+The robot sends a `heartbeat` every 2 s. It ends the session after three of its
+heartbeats pass with no valid frame from the desktop, about 8 s. While
+connected, the desktop must therefore send a frame at least every 2 s. Any
+valid frame counts, so a command already in flight is enough. With nothing else
+to send, the desktop sends an empty `set_config` (`"data":{}`), which changes
+no setting. The robot answers `command_ok`, and the desktop ignores it. Like any
+command it carries a fresh `id`, and a `command_error` is not expected. After the
+robot ends a session, the desktop starts over with a new `hello` exchange.
 
 Every command gets exactly one response from the robot with the command's `id`:
 `command_ok`, or `command_error` with an error code. The `error` event name was

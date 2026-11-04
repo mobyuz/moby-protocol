@@ -6,6 +6,19 @@ bump, including during 0.x. Each consuming repository upgrades in its own PR.
 
 ## [Unreleased]
 
+### Added
+
+- Optional `local_time` on `AgentTurnRequest`: the user's current time as an
+  RFC 3339 timestamp with a mandatory UTC offset, at most 35 characters, using
+  the same validation as the reminder `due_at`. Requests without it stay valid.
+  `PROTOCOL_VERSION` stays 1.
+
+### Documented
+
+- The desktop keepalive: send a frame at least every 2 s while connected, and
+  an empty `set_config` when idle, because the robot ends a session after three
+  of its heartbeats (about 8 s) without a valid frame. No wire change.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added

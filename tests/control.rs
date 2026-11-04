@@ -2,8 +2,8 @@ mod common;
 
 use common::{feed, hex, rows};
 use moby_protocol::usb::{
-    AudioStart, ControlMessage, ErrorCode, ErrorDetail, Frame, FrameDecoder, FrameKind,
-    MAX_PAYLOAD_LEN, MAX_WIRE_LEN, MESSAGES, Peer,
+    AudioStart, ControlMessage, DeviceConfig, ErrorCode, ErrorDetail, Frame, FrameDecoder,
+    FrameKind, MAX_PAYLOAD_LEN, MAX_WIRE_LEN, MESSAGES, Peer,
 };
 use serde_json::{Value, json};
 
@@ -61,6 +61,21 @@ fn message(name: &str) -> Value {
 
 fn parses(value: &Value) -> bool {
     serde_json::from_value::<ControlMessage>(value.clone()).is_ok()
+}
+
+#[test]
+fn an_empty_set_config_is_the_keepalive_frame() {
+    let keepalive = json!({
+        "v": 1, "kind": "command", "name": "set_config", "id": "c-0001", "ts_ms": 10, "data": {}
+    });
+    assert!(matches!(
+        serde_json::from_value::<ControlMessage>(keepalive.clone()),
+        Ok(ControlMessage::SetConfig { data, .. }) if data == DeviceConfig::default()
+    ));
+    // A keepalive that omits `data` is not a valid frame.
+    let mut missing = keepalive;
+    missing.as_object_mut().unwrap().remove("data");
+    assert!(!parses(&missing));
 }
 
 #[test]
