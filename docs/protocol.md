@@ -95,6 +95,150 @@ Rows are the old state; columns are the requested new state. Y is permitted:
 specify every pair and are tested by both languages. Offline rendering and
 connection detection are consumer responsibilities, using `disconnected` locally.
 
+## USB control messages
+
+Frames follow the [USB v1 decision record](adr/0003-usb-v1-host-framing.md).
+A control frame carries one JSON envelope:
+
+```json
+{"v":1,"kind":"event","name":"heartbeat","id":"e-0002","ts_ms":2010,"data":{"state":"idle","mute":false,"uptime_ms":2010}}
+```
+
+`v` is `1`. `kind` is `event`, `command`, or `response`, and `name` selects the
+payload. `id` is a registry ID and `ts_ms` is an unsigned 32-bit counter.
+Unknown names, extra fields at either level, and a `kind` that does not belong
+to the `name` are rejected. A duplicate field fails in Rust only, as with the
+tool types. The robot sends events; the desktop sends commands. The longest
+valid message, a `hello` with eight 64-character capabilities, fits the
+1024-byte payload limit.
+
+| Name | Kind | Sender | Data |
+| --- | --- | --- | --- |
+| `hello` | event | robot | `device_id`, `hw_rev`, `fw_version`, `protocol_version`, `capabilities`, `mute`, `paired`, `nonce` |
+| `hello_ack` | response | desktop | `accepted`, optional `session_id`, optional `proof`, `config` |
+| `heartbeat` | event | robot | `state`, `mute`, `uptime_ms` |
+| `wake_detected` | event | robot | `model_id`, `model_version` |
+| `button_event` | event | robot | `button` (`talk`), `action` (`press`, `release`, `long_press`) |
+| `mute_changed` | event | robot | `muted`, `source` (`switch`, `boot`) |
+| `audio_start` | event | robot | `stream_id`, `reason` (`wake`, `button`), `codec`, `sample_rate`, `channels`, `frame_ms`, `preroll_ms` |
+| `audio_end` | event | robot | `stream_id`, `reason`, `frames`, `duration_ms` |
+| `error` | event | robot | `code`, `detail` |
+| `expression` | command | desktop | `state`, `animation`, `duration_ms` |
+| `display_text` | command | desktop | `text`, `ttl_ms` |
+| `audio_play_start`, `audio_play_end` | command | desktop | `stream_id`, `codec`, `sample_rate` |
+| `cancel` | command | desktop | `stream_id` |
+| `set_config` | command | desktop | optional `wake_sensitivity`, `speaker_volume`, `vad_silence_ms`, `max_utterance_ms` |
+| `servo_pose` | command | desktop | `pose`, `duration_ms` |
+| `pair_begin` | command | desktop | `timeout_ms` |
+| `pair_set_key` | command | desktop | `pair_key` |
+| `pair_button_confirmed`, `pair_reset` | event | robot | none |
+| `command_ok` | response | robot | none |
+| `command_error` | response | robot | `code`, `detail` |
+
+Every command gets exactly one response from the robot with the command's `id`:
+`command_ok`, or `command_error` with an error code. The `error` event name was
+already taken by the robot's unsolicited errors, so responses use the
+`command_` prefix. `hello_ack` answers the `hello` event with its `id`.
+
+`audio_end.reason` is `vad_silence`, `max_duration`, `button_release`, `mute`,
+`cancel`, or `error`. The only codec is `pcm_s16le`. `animation` and `pose`
+are IDs the firmware knows by name; an unknown one gets `E_UNSUPPORTED`. The
+`hello_ack` `config` and `set_config` share one object. The robot applies the
+fields present and keeps the rest; null counts as absent.
+
+Error codes are `E_PROTO_VERSION`, `E_BAD_FRAME`, `E_CRC`, `E_STATE`,
+`E_MUTED`, `E_BUSY`, `E_AUDIO_OVERRUN`, `E_TIMEOUT`, `E_UNSUPPORTED`, and
+`E_HW`. `detail` is for people and never carries a key or proof.
+
+Rust validates every bound when it decodes, and JSON Schema states the same
+bounds. Ranges are inclusive:
+
+| Field | Range |
+| --- | --- |
+| `stream_id` | 1–65535 |
+| `sample_rate` | 8000–48000 Hz |
+| `channels` | 1–2 |
+| `frame_ms` | 10–60 |
+| `preroll_ms` | 0–2000 |
+| `duration_ms` (`expression`, `servo_pose`) | 0–60000 |
+| `ttl_ms` | 100–60000 |
+| `timeout_ms` | 1000–30000 |
+| `wake_sensitivity`, `speaker_volume` | 0–100 |
+| `vad_silence_ms` | 200–5000 |
+| `max_utterance_ms` | 1000–60000 |
+| `display_text.text` | 1–64 code points, no control characters |
+| `error.detail` | 1–128 code points, no control characters |
+| `hw_rev`, `fw_version`, `model_version` | 1–32 printable ASCII characters, no space |
+| `capabilities` | at most 8 registry IDs |
+| `frames`, `duration_ms` (`audio_end`), `uptime_ms`, `ts_ms`, `protocol_version` | unsigned 32-bit |
+
+The range checks cannot see that one PCM frame must fit the 1024-byte payload
+limit; the sender picks parameters accordingly, and `AudioStart::frame_bytes`
+computes the size (640 for 16 kHz mono at 20 ms).
+
+### Pairing and session authentication
+
+See the [decision record](adr/0004-pairing-and-session-auth.md) for the
+reasons. Keys, nonces, and proofs are lowercase hexadecimal: a nonce is 16
+bytes (32 digits), and a `pair_key` and a `proof` are 32 bytes (64 digits).
+
+1. The robot makes a random 128-bit `device_id` on first boot. Its `hello`
+   carries `paired` (whether it holds a key) and a fresh random `nonce`.
+2. The desktop answers with `hello_ack`. A `session_id` admits the session.
+   When the robot reported `paired` and the desktop holds the key, the ack
+   also carries `proof = HMAC-SHA256(pair_key, nonce || device_id || 0x00 ||
+   session_id)`: the 16 nonce bytes, the device ID text, one zero byte, and the
+   session ID text. An unpaired robot gets no proof.
+3. A paired robot checks the proof in constant time. A bad or missing proof
+   leaves the session unauthenticated and the robot sends `error` with
+   `E_STATE`. An unauthenticated session cannot start audio: the robot sends no
+   `audio_start`, and `audio_play_start` gets `E_STATE`.
+4. To pair, the desktop asks the user on screen, then sends `pair_begin` with a
+   timeout of at most 30 s. An unpaired idle robot answers `command_ok` and
+   waits for a talk-button press. A paired robot answers `E_STATE` and one
+   already waiting answers `E_BUSY`.
+5. The press produces `pair_button_confirmed` instead of audio. If the window
+   ends first, the robot sends `error` with `E_TIMEOUT`.
+6. The desktop makes 32 random bytes and sends `pair_set_key`. The robot
+   accepts it only after the button confirmation, stores it, answers
+   `command_ok`, and treats the session as authenticated. Otherwise it answers
+   `E_STATE`.
+7. A 10 s long press wipes the key. The robot sends `pair_reset`, becomes
+   unpaired, and the session becomes unauthenticated. The desktop forgets its
+   copy.
+
+The key travels once over USB without encryption and the robot is not
+authenticated to the desktop; see the decision record for the limits. `PairKey`
+prints as `PairKey(<redacted>)` in `Debug` output and never in errors.
+`tests/fixtures/proof-vectors.tsv` and `hmac-vectors.tsv` hold vectors for
+firmware to check its mbedTLS code against. The key in those files is test-only.
+
+### C codec
+
+`include/moby_usb_codec.h` and `c/moby_usb_codec.c` implement CRC-32, COBS,
+the bounded streaming decoder, frame parse and build, ID and hex checks, and
+the proof input for firmware and host tests. They use no heap and no JSON;
+firmware parses control JSON with cJSON and computes HMAC with mbedTLS. The
+generated `include/moby_usb.h` holds the field bounds, message names, error
+code strings, an expression enum, and `moby_can_transition`, all from Rust, so
+`npm run generate:check` catches drift. `tests/usb_vectors.c` runs every vector
+file listed below.
+
+### Shared vectors
+
+`scripts/make-usb-vectors.mjs` writes these from Node's CRC and HMAC, not from
+Rust, and the TypeScript tests fail if the files are stale. Rust, TypeScript,
+and C all read them:
+
+| File | Content |
+| --- | --- |
+| `usb-vectors.tsv` | Frame layout, audio frames, and bad frames |
+| `control-vectors.tsv` | Every message name, valid and invalid |
+| `cobs-vectors.tsv` | COBS encodings, including 253, 254, and 255-byte runs |
+| `hmac-vectors.tsv` | RFC 4231 HMAC-SHA256 cases |
+| `proof-vectors.tsv` | Session proof inputs and proofs |
+| `transition-vectors.tsv` | The expression transitions, from `wire.json` |
+
 ## Versions and compatibility
 
 `PACKAGE_VERSION` matches Cargo, npm, and the semver release tag. Generated

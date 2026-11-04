@@ -53,3 +53,7 @@ Rust provides framing constants for the generated TypeScript and C files.
 The three host tests read the same checked-in wire vectors. Rust dependencies
 are pinned to [cobs 0.5.1](https://docs.rs/cobs/0.5.1/cobs/) and
 [crc32fast 1.5.3](https://crates.io/crates/crc32fast/1.5.3).
+
+Superseded in part by the [pairing decision](0004-pairing-and-session-auth.md): the
+control set, pairing, and session authentication that this record left to later
+integration work now exist.

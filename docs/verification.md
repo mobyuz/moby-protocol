@@ -1,3 +1,76 @@
+# Verification recorded on 2026-11-04
+
+These are excerpts from commands run on branch `claude/usb-control-full` for
+version 0.2.0, in the Windows checkout at `D:\repos\moby\moby-protocol`. The
+earlier record from 2026-11-02 for 0.1.0 follows below. Nothing was pushed, so
+no hosted CI run exists for this branch.
+
+The C: volume had no free space, so these runs set `CARGO_HOME`, `TEMP`, `TMP`,
+and `npm_config_cache` to folders under the ignored `target\` directory. This
+changes where caches live and not what the commands do. Adding `hmac` and
+`sha2` added 11 packages to `Cargo.lock`.
+
+```text
+> cargo fmt --all -- --check          (exit 0, no output)
+> cargo clippy --locked --all-targets --all-features -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.11s   (exit 0)
+> cargo test --locked --all-targets --all-features        (exit 0)
+Running tests\contract.rs   test result: ok. 12 passed; 0 failed
+Running tests\control.rs    test result: ok. 12 passed; 0 failed
+Running tests\pairing.rs    test result: ok. 8 passed; 0 failed
+Running tests\usb.rs        test result: ok. 7 passed; 0 failed
+> cargo test --locked --no-default-features               (exit 0)
+Running tests\contract.rs   test result: ok. 12 passed; 0 failed
+Running tests\control.rs    test result: ok. 12 passed; 0 failed
+Running tests\pairing.rs    test result: ok. 8 passed; 0 failed
+Running tests\usb.rs        test result: ok. 7 passed; 0 failed
+> npm.cmd run generate:check
+all 16 generated files are current                                      (exit 0)
+> npm.cmd test                                                          (exit 0)
+ℹ tests 16
+ℹ pass 16
+ℹ fail 0
+> npm.cmd run check:release -- v0.2.0
+release metadata matches v0.2.0                                         (exit 0)
+> npm.cmd pack --dry-run                                                (exit 0)
+npm notice filename: mobyuz-moby-protocol-0.2.0.tgz
+npm notice package size: 27.7 kB
+npm notice total files: 20
+```
+
+## C codec host test
+
+No `gcc`, `cc`, or `clang` is installed on this machine. The test was built
+with MSVC 14.44.35207 from Visual Studio Build Tools 2022 (found with
+`vswhere`, environment from `VsDevCmd.bat -arch=x64`), warnings as errors:
+
+```text
+> cl /nologo /std:c11 /W4 /WX /I include /Fo:target\c\ /Fe:target\c\usb_vectors.exe c\moby_usb_codec.c tests\usb_vectors.c
+moby_usb_codec.c
+usb_vectors.c
+Generating Code...
+> target\c\usb_vectors.exe tests\fixtures                               (exit 0)
+C codec passed: 11 frame, 95 control, 16 COBS, 6 HMAC, 4 proof, 9 transition rows
+```
+
+The Ubuntu CI step uses `cc -std=c11 -Wall -Wextra -Werror -pedantic`. That
+exact command, and GCC's warnings, were not run here. `actionlint` v1.7.12 on
+the three workflow files exited 0 with no diagnostics.
+
+## C transition drift probe
+
+One bitmask in `include/moby_usb.h` was edited (`0x01f7u` to `0x01f5u` for
+`idle`), and the generation check was run. The original bytes were restored in
+a `finally` block and the check was repeated:
+
+```text
+> cargo run --locked --features generate --bin generate -- --check
+out of date: include/moby_usb.h
+generation failed: generated files differ; run npm run generate and commit the results   (exit 1)
+> cargo run --locked --features generate --bin generate -- --check
+all 16 generated files are current                                      (exit 0)
+```
+
 # Verification recorded on 2026-11-02
 
 These are excerpts from commands actually run in the Windows checkout at

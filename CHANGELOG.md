@@ -34,6 +34,7 @@ bump, including during 0.x. Each consuming repository upgrades in its own PR.
   optional pair key.
 - `hello` requires `paired` and `nonce`.
 - `PROTOCOL_VERSION` remains 1 because no robot has shipped.
+- New pinned dependencies: `hmac` 0.13.0 and `sha2` 0.11.1.
 
 ## [0.1.0] - 2026-11-02
 
