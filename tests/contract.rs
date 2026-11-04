@@ -174,6 +174,64 @@ fn agent_and_account_contracts_round_trip() {
 }
 
 #[test]
+fn local_time_is_optional_zoned_bounded_and_strict() {
+    let fixture = fixtures();
+    // The shared fixtures predate the field, so they cover the absent case.
+    let without = &fixture["agent_turn_requests"][1];
+    assert!(without.get("local_time").is_none());
+    let decoded: AgentTurnRequest = serde_json::from_value(without.clone()).unwrap();
+    assert!(decoded.local_time.is_none());
+    assert!(
+        serde_json::to_value(decoded)
+            .unwrap()
+            .get("local_time")
+            .is_none()
+    );
+
+    let request = |value: Value| {
+        let mut request = fixture["agent_turn_requests"][0].clone();
+        request["local_time"] = value;
+        serde_json::from_value::<AgentTurnRequest>(request)
+    };
+    for good in [
+        "2026-11-05T09:30:00+05:00",
+        "2026-11-05T04:30:00Z",
+        "2026-11-05T09:30:00.123456789-03:30",
+    ] {
+        let decoded = request(json!(good)).unwrap();
+        assert_eq!(decoded.local_time.unwrap().as_str(), good);
+    }
+    // Null counts as absent, like the other optional fields.
+    assert!(request(Value::Null).unwrap().local_time.is_none());
+
+    let oversized = format!("2026-11-05T09:30:00.{}+05:00", "1".repeat(20));
+    for bad in [
+        json!("2026-11-05T09:30:00"),
+        json!("2026-11-05T09:30:00 +05:00"),
+        json!("2026-11-05"),
+        json!("09:30"),
+        json!("not a time"),
+        json!(""),
+        json!("2026-13-05T09:30:00+05:00"),
+        json!("2026-11-05T09:30:00.1234567890+05:00"),
+        json!(oversized),
+        json!(format!(
+            "{}{}",
+            "2026-11-05T09:30:00+05:00",
+            " ".repeat(100)
+        )),
+        json!(1_762_300_200),
+        json!(true),
+    ] {
+        assert!(request(bad.clone()).is_err(), "{bad}");
+    }
+
+    let mut unknown = fixture["agent_turn_requests"][0].clone();
+    unknown["timezone"] = json!("Asia/Tashkent");
+    assert!(serde_json::from_value::<AgentTurnRequest>(unknown).is_err());
+}
+
+#[test]
 fn agent_rejects_unrecognized_roles_tools_and_payload_fields() {
     let fixture = fixtures();
     let mut request = fixture["agent_turn_requests"][0].clone();

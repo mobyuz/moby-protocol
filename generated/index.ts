@@ -32,6 +32,8 @@ export type Language = "uz" | "ru" | "en";
 
 export type Script = "latn" | "cyrl";
 
+export type LocalTime = string;
+
 export type ConsentType = "terms" | "privacy_policy" | "cloud_voice";
 
 export type UsageInfo = { llm_tokens_remaining: number, stt_seconds_remaining: number, tts_chars_remaining: number, reset_at: ZonedDateTime, };
@@ -42,7 +44,12 @@ export type ToolResource = { kind: ResourceKind, id: StableId, display_name: str
 
 export type AgentMessage = { "kind": "user", text: string, } | { "kind": "assistant", text: string, } | { "kind": "tool_call", call: ToolCall, } | { "kind": "tool_result", result: ToolResult, };
 
-export type AgentTurnRequest = { messages: Array<AgentMessage>, available_tools: Array<ToolName>, resources: Array<ToolResource>, language?: Language | null, script?: Script | null, };
+export type AgentTurnRequest = { messages: Array<AgentMessage>, available_tools: Array<ToolName>, resources: Array<ToolResource>, language?: Language | null, script?: Script | null, 
+/**
+ * The user's current time, so the model can resolve relative reminder
+ * times. Absent when the desktop cannot tell.
+ */
+local_time?: LocalTime | null, };
 
 export type AgentTurnResponse = { "event": "speech_delta", text: string, } | { "event": "tool_call", call: ToolCall, } | { "event": "completed", speech_text: string, display_text?: string | null, expression_hint: Expression, } | { "event": "error", error: ApiError, };
 

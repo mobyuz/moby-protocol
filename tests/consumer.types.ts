@@ -30,6 +30,7 @@ const turn: AgentTurnRequest = {
   resources: [],
   language: "uz",
   script: "latn",
+  local_time: "2026-11-05T09:30:00+05:00",
 };
 const event: AgentTurnResponse = { event: "tool_call", call: { call_id: "call_1", request: tool } };
 const allowed: boolean = canTransition(EXPRESSIONS[0], expression);

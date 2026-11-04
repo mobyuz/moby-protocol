@@ -2,7 +2,7 @@ use std::{env, error::Error, fs, path::Path};
 
 use moby_protocol::{
     AgentMessage, AgentTurnRequest, AgentTurnResponse, ApiError, ChatRequest, ChatResponse,
-    ConsentType, Expression, Language, PACKAGE_VERSION, PROTOCOL_VERSION, ReminderText,
+    ConsentType, Expression, Language, LocalTime, PACKAGE_VERSION, PROTOCOL_VERSION, ReminderText,
     ResourceKind, Script, SearchLimit, SearchQuery, StableId, ToolCall, ToolFailureCode, ToolName,
     ToolRequest, ToolResource, ToolResult, UsageInfo, ZonedDateTime, can_transition, usb,
 };
@@ -260,6 +260,7 @@ fn artifacts() -> Result<Vec<(String, String)>> {
     export!(ApiError, "api-error");
     export!(Language, "language");
     export!(Script, "script");
+    export!(LocalTime);
     export!(ConsentType, "consent-type");
     export!(UsageInfo, "usage-info");
     export!(ResourceKind);
