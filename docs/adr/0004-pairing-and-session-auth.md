@@ -61,8 +61,9 @@ so asking the desktop to reconnect would add nothing.
 - The key crosses the USB cable once in clear text. The button press stops a
   host process from pairing silently, but not a bus tap or a process that can
   already read the desktop's key store.
-- The proof authenticates the desktop to the robot only. The robot is not
-  authenticated to the desktop, and later frames carry no MAC. The nonce stops
+- Superseded by [0005](0005-robot-proof-of-key.md): the proof here
+  authenticates the desktop to the robot only, and 0005 adds the robot's proof
+  back. Later frames still carry no MAC. The nonce stops
   replay of a recorded `hello_ack` on a new connection; it does not protect
   traffic within a session.
 - `PairKey` stores its hex text, compares in constant time, and prints as

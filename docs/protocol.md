@@ -125,7 +125,8 @@ valid message, a `hello` with eight 64-character capabilities, fits the
 | Name | Kind | Sender | Data |
 | --- | --- | --- | --- |
 | `hello` | event | robot | `device_id`, `hw_rev`, `fw_version`, `protocol_version`, `capabilities`, `mute`, `paired`, `nonce` |
-| `hello_ack` | response | desktop | `accepted`, optional `session_id`, optional `proof`, `config` |
+| `hello_ack` | response | desktop | `accepted`, optional `session_id`, optional `proof` and `desktop_nonce` (both or neither), `config` |
+| `session_proof` | event | robot | `proof` |
 | `heartbeat` | event | robot | `state`, `mute`, `uptime_ms` |
 | `wake_detected` | event | robot | `model_id`, `model_version` |
 | `button_event` | event | robot | `button` (`talk`), `action` (`press`, `release`, `long_press`) |
@@ -207,38 +208,83 @@ bytes (32 digits), and a `pair_key` and a `proof` are 32 bytes (64 digits).
    carries `paired` (whether it holds a key) and a fresh random `nonce`.
 2. The desktop answers with `hello_ack`. A `session_id` admits the session.
    When the robot reported `paired` and the desktop holds the key, the ack
-   also carries `proof = HMAC-SHA256(pair_key, nonce || device_id || 0x00 ||
-   session_id)`: the 16 nonce bytes, the device ID text, one zero byte, and the
-   session ID text. An unpaired robot gets no proof.
-3. A paired robot checks the proof in constant time. A bad or missing proof
-   leaves the session unauthenticated and the robot sends `error` with
-   `E_STATE`. An unauthenticated session cannot start audio: the robot sends no
+   also carries two fields that appear together or not at all, and never as
+   `null`:
+   - `proof = HMAC-SHA256(pair_key, nonce || device_id || 0x00 || session_id)`:
+     the 16 `hello` nonce bytes, the device ID text, one zero byte, and the
+     session ID text. This is the desktop proof and its input is unchanged.
+   - `desktop_nonce`: 16 fresh random bytes as 32 lowercase hexadecimal digits,
+     made by the desktop for this ack and never reused.
+
+   An unpaired robot gets neither.
+3. A paired robot checks the desktop proof in constant time. A bad or missing
+   proof leaves the session unauthenticated and the robot sends `error` with
+   `E_STATE`. It computes no HMAC and sends no `session_proof`, so a peer that
+   cannot prove the key gets nothing from the robot to replay or reflect. An
+   unauthenticated session cannot start audio: the robot sends no
    `audio_start`, and `audio_play_start` gets `E_STATE`.
-4. To pair, the desktop asks the user on screen, then sends `pair_begin` with a
+4. When the desktop proof verified, the first event the robot sends after that
+   is `session_proof`, before any `audio_start` or other event. Its `proof` is
+   lowercase hexadecimal of
+
+   `HMAC-SHA256(pair_key, "moby-robot-proof-v1" || 0x00 || desktop_nonce || robot_nonce || device_id || 0x00 || session_id)`
+
+   where the label is its 19 ASCII bytes, `desktop_nonce` and `robot_nonce` (the
+   `hello` nonce) are the 16 raw bytes of each, and the IDs are text. The robot
+   then clears both nonces. The label keeps the two proofs apart: a desktop proof
+   input starts with a nonce and then a device ID, which never starts with `-`,
+   while the label has `-` at byte 16, so neither proof can be reflected as the
+   other even when one side picks its nonce to match the label.
+   A heartbeat the robot queued before it read the ack can arrive first; only
+   events after the verification are ordered.
+5. The desktop verifies `session_proof` in constant time against the
+   `desktop_nonce` it sent. It accepts no robot audio (no `audio_start` and no
+   audio frames) from a robot it has not proven, and it makes no use of
+   such audio. If no valid `session_proof` arrives within 3 s of sending
+   `hello_ack` (the handshake window), or one arrives that fails
+   verification, the desktop treats the robot as unproven: it uploads nothing,
+   feeds nothing to the agent, tells the user that the device could not prove
+   it holds the pairing key, and may disconnect. Only the first `session_proof`
+   counts. This rule applies whenever the desktop sent a `desktop_nonce`.
+6. To pair, the desktop asks the user on screen, then sends `pair_begin` with a
    timeout of at most 30 s. An unpaired idle robot answers `command_ok` and
    waits for a talk-button press. A paired robot answers `E_STATE` and one
    already waiting answers `E_BUSY`.
-5. The press produces `pair_button_confirmed` instead of audio. If the window
+7. The press produces `pair_button_confirmed` instead of audio. If the window
    ends first, the robot sends `error` with `E_TIMEOUT`.
-6. The desktop makes 32 random bytes and sends `pair_set_key`. The robot
+8. The desktop makes 32 random bytes and sends `pair_set_key`. The robot
    accepts it only after the button confirmation, stores it, answers
    `command_ok`, and treats the session as authenticated. Otherwise it answers
-   `E_STATE`.
-7. A 10 s long press wipes the key. The robot sends `pair_reset`, becomes
-   unpaired, and the session becomes unauthenticated. The desktop forgets its
-   copy.
+   `E_STATE`. That session had no `desktop_nonce`, so it carries no
+   `session_proof` and the robot is not proven on it. The desktop treats it
+   as unproven for audio and starts a new `hello` exchange right away; the
+   first proven session is the next one.
+9. A 10 s long press wipes the key. The robot sends `pair_reset`, becomes
+   unpaired, and the session becomes unauthenticated. `pair_reset` cannot carry
+   a proof, because the robot has just erased its key, so any USB device can send
+   one. The desktop must not delete its stored key on `pair_reset` alone. It
+   marks the pairing stale, accepts no audio from that device until it is
+   proven or re-paired, and asks the user whether to keep the key or remove the
+   pairing. The same applies to a `hello` with `paired: false` from a device
+   ID the desktop holds a key for: it is stale, not a new unpaired robot, and the
+   desktop does not send `pair_set_key` to it without the user's confirmation.
 
-The key travels once over USB without encryption and the robot is not
-authenticated to the desktop; see the decision record for the limits. `PairKey`
-prints as `PairKey(<redacted>)` in `Debug` output and never in errors.
-`tests/fixtures/proof-vectors.tsv` and `hmac-vectors.tsv` hold vectors for
-firmware to check its mbedTLS code against. The key in those files is test-only.
+The key travels once over USB without encryption, so the first pairing trusts
+the cable and the button press. After that, both sides prove the key at the
+start of each session, but later frames carry no MAC: a device that takes over
+the cable after the handshake, or relays it, is not stopped. See the decision
+records for the limits ([0004](adr/0004-pairing-and-session-auth.md),
+[0005](adr/0005-robot-proof-of-key.md)). `PairKey` prints as
+`PairKey(<redacted>)` in `Debug` output and never in errors.
+`tests/fixtures/proof-vectors.tsv`, `robot-proof-vectors.tsv`,
+`reflection-vectors.tsv`, and `hmac-vectors.tsv` hold vectors for firmware to
+check its mbedTLS code against. The key in those files is test-only.
 
 ### C codec
 
 `include/moby_usb_codec.h` and `c/moby_usb_codec.c` implement CRC-32, COBS,
 the bounded streaming decoder, frame parse and build, ID and hex checks, and
-the proof input for firmware and host tests. They use no heap and no JSON;
+the desktop and robot proof inputs for firmware and host tests. They use no heap and no JSON;
 firmware parses control JSON with cJSON and computes HMAC with mbedTLS. The
 generated `include/moby_usb.h` holds the field bounds, message names, error
 code strings, an expression enum, and `moby_can_transition`, all from Rust, so
@@ -257,7 +303,9 @@ and C all read them:
 | `control-vectors.tsv` | Every message name, valid and invalid |
 | `cobs-vectors.tsv` | COBS encodings, including 253, 254, and 255-byte runs |
 | `hmac-vectors.tsv` | RFC 4231 HMAC-SHA256 cases |
-| `proof-vectors.tsv` | Session proof inputs and proofs |
+| `proof-vectors.tsv` | Desktop session proof inputs and proofs |
+| `robot-proof-vectors.tsv` | Robot `session_proof` inputs and proofs |
+| `reflection-vectors.tsv` | Desktop and robot inputs that must differ, so neither proof can stand in for the other |
 | `transition-vectors.tsv` | The expression transitions, from `wire.json` |
 
 ## Versions and compatibility

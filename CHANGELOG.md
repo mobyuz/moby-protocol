@@ -8,13 +8,37 @@ bump, including during 0.x. Each consuming repository upgrades in its own PR.
 
 ### Added
 
+- Robot-to-desktop authentication. `hello_ack` gains `desktop_nonce` (16 random
+  bytes, lowercase hex), present exactly when `proof` is. A new robot event
+  `session_proof` carries the robot's HMAC-SHA256 over
+  `"moby-robot-proof-v1" || 0x00 || desktop_nonce || robot_nonce || device_id ||
+  0x00 || session_id`, sent only after the desktop proof verified and before any
+  audio. A desktop with no valid `session_proof` within 3 s treats the robot as
+  unproven and accepts no audio. Library helpers: `robot_proof_input`,
+  `PairKey::robot_session_proof`, `PairKey::verify_robot_session_proof`
+  (constant time) and `ROBOT_PROOF_LABEL`; C: `moby_robot_proof_input`,
+  `MOBY_USB_ROBOT_PROOF_LABEL`. New vectors: `robot-proof-vectors.tsv` and
+  `reflection-vectors.tsv`, computed by Node. `PROTOCOL_VERSION` stays 1. See
+  [decision 0005](docs/adr/0005-robot-proof-of-key.md).
 - Optional `local_time` on `AgentTurnRequest`: the user's current time as an
   RFC 3339 timestamp with a mandatory UTC offset, at most 35 characters, using
   the same validation as the reminder `due_at`. Requests without it stay valid.
   `PROTOCOL_VERSION` stays 1.
 
+### Changed
+
+- `ControlMessage::acknowledge_hello` takes `Option<(&PairKey, Nonce)>`, the
+  key with a fresh desktop nonce, instead of `Option<&PairKey>`.
+- `hello_ack.proof` no longer accepts `null`; omit it. The control message
+  count is 23.
+
 ### Documented
 
+- `pair_reset` cannot be authenticated, so a desktop must not delete its stored
+  key on it: it marks the pairing stale and asks the user. The same goes for a
+  `hello` with `paired: false` from a device ID it holds a key for. A session
+  authenticated by `pair_set_key` has no robot proof; the desktop reconnects.
+  The old "desktop forgets its copy" wording is removed.
 - The desktop keepalive: send a frame at least every 2 s while connected, and
   an empty `set_config` when idle, because the robot ends a session after three
   of its heartbeats (about 8 s) without a valid frame. No wire change.
