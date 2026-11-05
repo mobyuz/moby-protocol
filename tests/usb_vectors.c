@@ -210,6 +210,57 @@ static void proof_row(char **fields, size_t count) {
                                    &input_length) == MOBY_ERR_OUTPUT_TOO_SMALL);
 }
 
+static void robot_proof_row(char **fields, size_t count) {
+    CHECK(count == 8);
+    uint8_t key[MOBY_USB_PAIR_KEY_BYTES];
+    uint8_t desktop_nonce[MOBY_USB_NONCE_BYTES];
+    uint8_t robot_nonce[MOBY_USB_NONCE_BYTES];
+    uint8_t expected[256];
+    uint8_t proof[MOBY_USB_PROOF_BYTES];
+    CHECK(from_hex(fields[1], key, sizeof(key)) == sizeof(key));
+    CHECK(from_hex(fields[2], desktop_nonce, sizeof(desktop_nonce)) == sizeof(desktop_nonce));
+    CHECK(from_hex(fields[3], robot_nonce, sizeof(robot_nonce)) == sizeof(robot_nonce));
+    const size_t expected_length = from_hex(fields[6], expected, sizeof(expected));
+    CHECK(from_hex(fields[7], proof, sizeof(proof)) == sizeof(proof));
+    uint8_t input[256];
+    size_t input_length = 0;
+    CHECK(moby_robot_proof_input(desktop_nonce, robot_nonce, fields[4], fields[5], input,
+                                 sizeof(input), &input_length) == MOBY_OK);
+    if (input_length != expected_length || memcmp(input, expected, expected_length) != 0) {
+        fprintf(stderr, "%s: robot proof input differs from the vector\n", fields[0]);
+        exit(1);
+    }
+    CHECK(moby_robot_proof_input(desktop_nonce, robot_nonce, fields[4], fields[5], input,
+                                 input_length - 1, &input_length) == MOBY_ERR_OUTPUT_TOO_SMALL);
+    CHECK(moby_robot_proof_input(NULL, robot_nonce, fields[4], fields[5], input, sizeof(input),
+                                 &input_length) == MOBY_ERR_BAD_ARGUMENT);
+    CHECK(moby_robot_proof_input(desktop_nonce, robot_nonce, "", fields[5], input,
+                                 sizeof(input), &input_length) == MOBY_ERR_BAD_ARGUMENT);
+}
+
+/* The desktop and robot proof inputs of one row differ, first at the stated byte. */
+static void reflection_row(char **fields, size_t count) {
+    CHECK(count == 7);
+    uint8_t desktop[256];
+    uint8_t robot[256];
+    uint8_t proof[MOBY_USB_PROOF_BYTES];
+    const size_t desktop_length = from_hex(fields[2], desktop, sizeof(desktop));
+    CHECK(from_hex(fields[3], proof, sizeof(proof)) == sizeof(proof));
+    const size_t robot_length = from_hex(fields[4], robot, sizeof(robot));
+    CHECK(from_hex(fields[5], proof, sizeof(proof)) == sizeof(proof));
+    size_t difference = 0;
+    while (difference < desktop_length && difference < robot_length &&
+           desktop[difference] == robot[difference]) {
+        difference++;
+    }
+    CHECK(difference < desktop_length || difference < robot_length);
+    CHECK(difference == (size_t)strtoul(fields[6], NULL, 10));
+    /* A robot input starts with the label and a zero byte. */
+    CHECK(robot_length > MOBY_USB_ROBOT_PROOF_LABEL_LEN + 1);
+    CHECK(memcmp(robot, MOBY_USB_ROBOT_PROOF_LABEL, MOBY_USB_ROBOT_PROOF_LABEL_LEN) == 0);
+    CHECK(robot[MOBY_USB_ROBOT_PROOF_LABEL_LEN] == 0);
+}
+
 static size_t transition_index;
 
 static void transition_row(char **fields, size_t count) {
@@ -396,6 +447,8 @@ int main(int argc, char **argv) {
     const size_t cobs = for_each_row(argv[1], "cobs-vectors.tsv", cobs_row);
     const size_t hmacs = for_each_row(argv[1], "hmac-vectors.tsv", hmac_row);
     const size_t proofs = for_each_row(argv[1], "proof-vectors.tsv", proof_row);
+    const size_t robot_proofs = for_each_row(argv[1], "robot-proof-vectors.tsv", robot_proof_row);
+    const size_t reflections = for_each_row(argv[1], "reflection-vectors.tsv", reflection_row);
     const size_t transitions = for_each_row(argv[1], "transition-vectors.tsv", transition_row);
     CHECK(transition_index == MOBY_EXPRESSION_COUNT);
     check_decoder_recovery();
@@ -403,7 +456,8 @@ int main(int argc, char **argv) {
     check_all_lengths();
     check_helpers();
     check_cobs_errors();
-    printf("C codec passed: %zu frame, %zu control, %zu COBS, %zu HMAC, %zu proof, %zu transition rows\n",
-           frames, controls, cobs, hmacs, proofs, transitions);
+    printf("C codec passed: %zu frame, %zu control, %zu COBS, %zu HMAC, %zu proof, %zu robot proof, "
+           "%zu reflection, %zu transition rows\n",
+           frames, controls, cobs, hmacs, proofs, robot_proofs, reflections, transitions);
     return 0;
 }
