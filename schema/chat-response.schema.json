@@ -26,7 +26,7 @@
     "reply",
     "expression"
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "Expression": {
       "description": "Face states remain available locally when the backend is unreachable.",

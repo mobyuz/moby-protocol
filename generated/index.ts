@@ -32,6 +32,8 @@ export type Language = "uz" | "ru" | "en";
 
 export type Script = "latn" | "cyrl";
 
+export type LocalTime = string;
+
 export type ConsentType = "terms" | "privacy_policy" | "cloud_voice";
 
 export type UsageInfo = { llm_tokens_remaining: number, stt_seconds_remaining: number, tts_chars_remaining: number, reset_at: ZonedDateTime, };
@@ -42,7 +44,12 @@ export type ToolResource = { kind: ResourceKind, id: StableId, display_name: str
 
 export type AgentMessage = { "kind": "user", text: string, } | { "kind": "assistant", text: string, } | { "kind": "tool_call", call: ToolCall, } | { "kind": "tool_result", result: ToolResult, };
 
-export type AgentTurnRequest = { messages: Array<AgentMessage>, available_tools: Array<ToolName>, resources: Array<ToolResource>, language?: Language | null, script?: Script | null, };
+export type AgentTurnRequest = { messages: Array<AgentMessage>, available_tools: Array<ToolName>, resources: Array<ToolResource>, language?: Language | null, script?: Script | null, 
+/**
+ * The user's current time, so the model can resolve relative reminder
+ * times. Absent when the desktop cannot tell.
+ */
+local_time?: LocalTime | null, };
 
 export type AgentTurnResponse = { "event": "speech_delta", text: string, } | { "event": "tool_call", call: ToolCall, } | { "event": "completed", speech_text: string, display_text?: string | null, expression_hint: Expression, } | { "event": "error", error: ApiError, };
 
@@ -50,19 +57,127 @@ export type ControlVersion = number;
 
 export type EventKind = "event";
 
+export type CommandKind = "command";
+
 export type ResponseKind = "response";
 
-export type Hello = { device_id: StableId, hw_rev: string, fw_version: string, protocol_version: number, capabilities: Array<StableId>, mute: boolean, };
+export type Empty = Record<symbol, never>;
 
-export type HelloConfig = Record<symbol, never>;
+export type ErrorCode = "E_PROTO_VERSION" | "E_BAD_FRAME" | "E_CRC" | "E_STATE" | "E_MUTED" | "E_BUSY" | "E_AUDIO_OVERRUN" | "E_TIMEOUT" | "E_UNSUPPORTED" | "E_HW";
 
-export type HelloAck = { accepted: boolean, session_id?: StableId | null, config: HelloConfig, };
+export type ErrorDetail = string;
+
+export type VersionText = string;
+
+export type ScreenText = string;
+
+export type AudioStreamId = number;
+
+export type ActionDurationMs = number;
+
+export type TextTtlMs = number;
+
+export type PairTimeoutMs = number;
+
+export type SampleRate = number;
+
+export type ChannelCount = number;
+
+export type FrameMs = number;
+
+export type PrerollMs = number;
+
+export type Percent = number;
+
+export type VadSilenceMs = number;
+
+export type MaxUtteranceMs = number;
+
+export type Nonce = string;
+
+export type Proof = string;
+
+export type PairKey = string;
+
+export type Capabilities = Array<StableId>;
+
+export type ErrorInfo = { code: ErrorCode, detail: ErrorDetail, };
+
+export type DeviceConfig = { wake_sensitivity?: Percent | null, speaker_volume?: Percent | null, vad_silence_ms?: VadSilenceMs | null, max_utterance_ms?: MaxUtteranceMs | null, };
+
+export type Hello = { device_id: StableId, hw_rev: VersionText, fw_version: VersionText, protocol_version: number, capabilities: Capabilities, mute: boolean, 
+/**
+ * Whether the robot holds a pairing key.
+ */
+paired: boolean, 
+/**
+ * Fresh for every hello, so a recorded proof cannot be replayed.
+ */
+nonce: Nonce, };
+
+export type HelloAck = { accepted: boolean, session_id?: StableId | null, 
+/**
+ * Present only when the robot reported `paired` and the desktop holds
+ * the key.
+ */
+proof?: Proof, 
+/**
+ * Fresh for every `hello_ack`; present exactly when `proof` is. The
+ * robot's `session_proof` covers it.
+ */
+desktop_nonce?: Nonce, config: DeviceConfig, };
+
+export type SessionProof = { proof: Proof, };
 
 export type Heartbeat = { state: Expression, mute: boolean, uptime_ms: number, };
 
-export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, };
+export type WakeDetected = { model_id: StableId, model_version: VersionText, };
 
-export const PACKAGE_VERSION = "0.1.0" as const;
+export type Button = "talk";
+
+export type ButtonAction = "press" | "release" | "long_press";
+
+export type ButtonEvent = { button: Button, action: ButtonAction, };
+
+export type MuteSource = "switch" | "boot";
+
+export type MuteChanged = { muted: boolean, source: MuteSource, };
+
+export type AudioStartReason = "wake" | "button";
+
+export type AudioCodec = "pcm_s16le";
+
+export type AudioStart = { stream_id: AudioStreamId, reason: AudioStartReason, codec: AudioCodec, sample_rate: SampleRate, channels: ChannelCount, frame_ms: FrameMs, preroll_ms: PrerollMs, };
+
+export type AudioEndReason = "vad_silence" | "max_duration" | "button_release" | "mute" | "cancel" | "error";
+
+export type AudioEnd = { stream_id: AudioStreamId, reason: AudioEndReason, frames: number, duration_ms: number, };
+
+export type SetExpression = { state: Expression, 
+/**
+ * An animation the firmware knows by name. Unknown names get `E_UNSUPPORTED`.
+ */
+animation: StableId, duration_ms: ActionDurationMs, };
+
+export type DisplayText = { text: ScreenText, ttl_ms: TextTtlMs, };
+
+export type AudioPlay = { stream_id: AudioStreamId, codec: AudioCodec, sample_rate: SampleRate, };
+
+export type Cancel = { stream_id: AudioStreamId, };
+
+export type ServoPose = { 
+/**
+ * A pose the firmware knows by name. Unknown names get `E_UNSUPPORTED`.
+ */
+pose: StableId, duration_ms: ActionDurationMs, };
+
+export type PairBegin = { timeout_ms: PairTimeoutMs, };
+
+export type PairSetKey = { pair_key: PairKey, };
+
+export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, } | { "name": "wake_detected", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: WakeDetected, } | { "name": "button_event", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ButtonEvent, } | { "name": "mute_changed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: MuteChanged, } | { "name": "audio_start", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioStart, } | { "name": "audio_end", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioEnd, } | { "name": "error", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ErrorInfo, } | { "name": "pair_button_confirmed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "pair_reset", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "session_proof", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: SessionProof, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "expression", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: SetExpression, } | { "name": "display_text", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DisplayText, } | { "name": "audio_play_start", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "audio_play_end", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "cancel", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: Cancel, } | { "name": "set_config", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DeviceConfig, } | { "name": "servo_pose", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: ServoPose, } | { "name": "pair_begin", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairBegin, } | { "name": "pair_set_key", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairSetKey, } | { "name": "command_ok", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "command_error", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: ErrorInfo, };
+
+export const PACKAGE_VERSION = "0.2.0" as const;
 
 export const PROTOCOL_VERSION = 1 as const;
 
@@ -86,6 +201,34 @@ export const USB = {
   ROBOT_AUDIO: 2,
   DESKTOP_AUDIO: 3,
 } as const;
+
+export const CONTROL_MESSAGES = [
+  { name: "hello", kind: "event", sender: "robot" },
+  { name: "heartbeat", kind: "event", sender: "robot" },
+  { name: "wake_detected", kind: "event", sender: "robot" },
+  { name: "button_event", kind: "event", sender: "robot" },
+  { name: "mute_changed", kind: "event", sender: "robot" },
+  { name: "audio_start", kind: "event", sender: "robot" },
+  { name: "audio_end", kind: "event", sender: "robot" },
+  { name: "error", kind: "event", sender: "robot" },
+  { name: "pair_button_confirmed", kind: "event", sender: "robot" },
+  { name: "pair_reset", kind: "event", sender: "robot" },
+  { name: "session_proof", kind: "event", sender: "robot" },
+  { name: "hello_ack", kind: "response", sender: "desktop" },
+  { name: "expression", kind: "command", sender: "desktop" },
+  { name: "display_text", kind: "command", sender: "desktop" },
+  { name: "audio_play_start", kind: "command", sender: "desktop" },
+  { name: "audio_play_end", kind: "command", sender: "desktop" },
+  { name: "cancel", kind: "command", sender: "desktop" },
+  { name: "set_config", kind: "command", sender: "desktop" },
+  { name: "servo_pose", kind: "command", sender: "desktop" },
+  { name: "pair_begin", kind: "command", sender: "desktop" },
+  { name: "pair_set_key", kind: "command", sender: "desktop" },
+  { name: "command_ok", kind: "response", sender: "robot" },
+  { name: "command_error", kind: "response", sender: "robot" },
+] as const;
+
+export const ERROR_CODES = ["E_PROTO_VERSION", "E_BAD_FRAME", "E_CRC", "E_STATE", "E_MUTED", "E_BUSY", "E_AUDIO_OVERRUN", "E_TIMEOUT", "E_UNSUPPORTED", "E_HW"] as const satisfies readonly ErrorCode[];
 
 export const EXPRESSIONS = ["idle", "listening", "thinking", "speaking", "happy", "confused", "error", "muted", "disconnected"] as const satisfies readonly Expression[];
 

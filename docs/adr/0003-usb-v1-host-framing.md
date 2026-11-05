@@ -22,7 +22,7 @@ device authentication separately. [zlib CRC-32](https://zlib.net/manual.html)
 | 2 | 1 | Flags, zero |
 | 3 | 1 | Reserved, zero |
 | 4 | 2 | Stream ID, zero for control and nonzero for audio |
-| 6 | 4 | Sequence counter for the stream |
+| 6 | 4 | Sequence counter for the stream: `0` on its first frame, then one more per frame |
 | 10 | 2 | Payload length in bytes |
 | 12 | length | UTF-8 control JSON or audio bytes |
 | 12 + length | 4 | CRC-32 |
@@ -53,3 +53,7 @@ Rust provides framing constants for the generated TypeScript and C files.
 The three host tests read the same checked-in wire vectors. Rust dependencies
 are pinned to [cobs 0.5.1](https://docs.rs/cobs/0.5.1/cobs/) and
 [crc32fast 1.5.3](https://crates.io/crates/crc32fast/1.5.3).
+
+Superseded in part by the [pairing decision](0004-pairing-and-session-auth.md): the
+control set, pairing, and session authentication that this record left to later
+integration work now exist.

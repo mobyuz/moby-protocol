@@ -82,7 +82,7 @@
       ]
     }
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "ApiError": {
       "description": "Public error details. Callers must redact provider errors and credentials.",

@@ -5,7 +5,7 @@ independent repository under `mobyuz`; it contains no other Moby repositories.
 Rust is the source of truth for types, JSON Schema, the protocol version, and
 state transitions. The npm package is `@mobyuz/moby-protocol`.
 
-The working version is **0.1.0**. A tag and published package are created only
+The working version is **0.2.0**. A tag and published package are created only
 through the release process below.
 
 ## Windows setup (PowerShell, x64)
@@ -88,11 +88,23 @@ an explicit generator configuration; environment variables cannot alter its
 output. `.gitattributes` preserves LF on Windows. Generation requires the
 `generate` Cargo feature; normal Rust consumers do not pull in `ts-rs`.
 
-The USB host tests share `tests/fixtures/usb-vectors.tsv`. Rust and Node run
-them through the commands above. Ubuntu CI also builds and runs the C host
-test against `include/moby_usb.h`. See the
+The USB tests share the vector files in `tests/fixtures/`, which
+`scripts/make-usb-vectors.mjs` writes. Rust and Node run them through the
+commands above. Ubuntu CI also builds the dependency-free C codec in `c/`
+(header `include/moby_usb_codec.h`) and runs the C host test over the same
+files:
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -pedantic -I include c/moby_usb_codec.c tests/usb_vectors.c -o usb_vectors
+./usb_vectors tests/fixtures
+```
+
+On Windows without GCC, compile the same two sources with MSVC from a
+Developer PowerShell (`cl /std:c11 /W4 /WX /I include`). See the
 [USB v1 decision record](docs/adr/0003-usb-v1-host-framing.md) for the frame
-layout and handshake.
+layout, the [protocol details](docs/protocol.md#usb-control-messages) for the
+control messages, and the
+[pairing decision](docs/adr/0004-pairing-and-session-auth.md).
 
 ## Consume a pinned release
 
@@ -100,7 +112,7 @@ Do this only after the referenced release exists. Rust consumers use a tag:
 
 ```toml
 [dependencies]
-moby-protocol = { git = "https://github.com/mobyuz/moby-protocol", tag = "v0.1.0" }
+moby-protocol = { git = "https://github.com/mobyuz/moby-protocol", tag = "v0.2.0" }
 ```
 
 Commit consumer `Cargo.lock` files. See [authentication](docs/authentication.md)
@@ -119,7 +131,7 @@ Set `NODE_AUTH_TOKEN` in the process environment using a GitHub Packages token
 
 ```powershell
 $env:NODE_AUTH_TOKEN = [System.Net.NetworkCredential]::new('', (Read-Host 'GitHub Packages read token' -AsSecureString)).Password
-npm.cmd install --save-exact @mobyuz/moby-protocol@0.1.0
+npm.cmd install --save-exact @mobyuz/moby-protocol@0.2.0
 Remove-Item Env:\NODE_AUTH_TOKEN
 ```
 
@@ -176,15 +188,15 @@ npm.cmd install --package-lock-only --ignore-scripts --no-audit --no-fund
 npm.cmd run generate
 cargo test --locked --all-targets --all-features
 npm.cmd test
-npm.cmd run check:release -- v0.1.0
-git tag -a v0.1.0 -m 'moby-protocol v0.1.0'
-git push origin v0.1.0
+npm.cmd run check:release -- v0.2.0
+git tag -a v0.2.0 -m 'moby-protocol v0.1.0'
+git push origin v0.2.0
 ```
 
 Substitute the new version in both tag commands. Tag pushes run the same
 Windows/Linux checks as CI, enforce matching release versions and main ancestry,
 pack the package, create a draft release with the npm tarball, JSON Schemas,
-the USB C header, and wire vectors,
+the USB C headers and codec, and wire vectors,
 publish to GitHub Packages, and then publish the GitHub Release. The release
 uses `GITHUB_TOKEN` with job-scoped `contents: write` and `packages: write`.
 It never publishes to npmjs.com or crates.io. No release is triggered by `main`.

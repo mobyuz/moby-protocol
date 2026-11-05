@@ -1,45 +1,29 @@
+mod common;
+
+use common::{feed, hex, rows};
 use moby_protocol::{
     StableId,
     usb::{
-        ControlMessage, Frame, FrameDecoder, FrameError, FrameKind, MAX_ENCODED_LEN,
-        MAX_PAYLOAD_LEN, MAX_WIRE_LEN,
+        ControlMessage, Frame, FrameDecoder, FrameError, FrameKind, MAX_DECODED_LEN,
+        MAX_ENCODED_LEN, MAX_PAYLOAD_LEN, MAX_WIRE_LEN, Nonce, PairKey,
     },
 };
 use serde_json::{Value, json};
 
-fn hex(value: &str) -> Vec<u8> {
-    assert_eq!(value.len() % 2, 0);
-    (0..value.len())
-        .step_by(2)
-        .map(|offset| u8::from_str_radix(&value[offset..offset + 2], 16).unwrap())
-        .collect()
-}
-
-fn feed<'a>(decoder: &'a mut FrameDecoder, wire: &[u8]) -> Result<Frame<'a>, FrameError> {
-    let (&delimiter, segment) = wire.split_last().unwrap();
-    assert_eq!(delimiter, 0);
-    for &byte in segment {
-        assert!(decoder.push(byte).is_none());
-    }
-    decoder.push(delimiter).expect("segment ended")
-}
-
 fn control(name: &str) -> Value {
-    let line = include_str!("fixtures/usb-vectors.tsv")
-        .lines()
-        .find(|line| line.split('\t').next() == Some(name))
+    let row = rows(include_str!("fixtures/control-vectors.tsv"))
+        .into_iter()
+        .find(|row| row[0] == name)
         .expect("control vector exists");
-    let payload = hex(line.split('\t').nth(5).unwrap());
-    serde_json::from_slice(&payload).unwrap()
+    serde_json::from_slice(&hex(row[3])).unwrap()
 }
 
 #[test]
 fn shared_vectors_decode_and_valid_frames_encode_byte_for_byte() {
     let mut decoder = FrameDecoder::default();
-    for line in include_str!("fixtures/usb-vectors.tsv").lines().skip(1) {
-        let fields: Vec<_> = line.split('\t').collect();
+    for fields in rows(include_str!("fixtures/usb-vectors.tsv")) {
         let [name, result, kind, stream, sequence, payload, wire] = fields[..] else {
-            panic!("invalid fixture: {line}");
+            panic!("invalid fixture: {fields:?}");
         };
         let wire = hex(wire);
         let result = match result {
@@ -53,10 +37,6 @@ fn shared_vectors_decode_and_valid_frames_encode_byte_for_byte() {
                 let mut output = [0; MAX_WIRE_LEN];
                 let written = frame.encode(&mut output).unwrap();
                 assert_eq!(output[..written], wire, "{name}");
-                if frame.kind == FrameKind::Control {
-                    let message: ControlMessage = serde_json::from_slice(frame.payload).unwrap();
-                    assert_eq!(serde_json::to_value(message).unwrap(), control(name));
-                }
                 continue;
             }
             "bad_frame" => FrameError::BadFrame,
@@ -146,7 +126,7 @@ fn handshake_requires_a_matching_id_compatible_protocol_and_local_admission() {
     let session_id = StableId::new("session_1").unwrap();
     let hello: ControlMessage = serde_json::from_value(control("hello")).unwrap();
     let ack = hello
-        .acknowledge_hello(Some(session_id.clone()), 11)
+        .acknowledge_hello(Some(session_id.clone()), None, 11)
         .unwrap();
     assert_eq!(serde_json::to_value(&ack).unwrap(), control("hello_ack"));
     assert_eq!(ack.accepted_session(&hello_id), Some(&session_id));
@@ -160,7 +140,7 @@ fn handshake_requires_a_matching_id_compatible_protocol_and_local_admission() {
     );
     assert!(
         hello
-            .acknowledge_hello(None, 11)
+            .acknowledge_hello(None, None, 11)
             .unwrap()
             .accepted_session(&hello_id)
             .is_none()
@@ -169,12 +149,60 @@ fn handshake_requires_a_matching_id_compatible_protocol_and_local_admission() {
     let mut mismatched = control("hello");
     mismatched["data"]["protocol_version"] = json!(2);
     let mismatched: ControlMessage = serde_json::from_value(mismatched).unwrap();
-    let rejection = mismatched.acknowledge_hello(Some(session_id), 11).unwrap();
+    let rejection = mismatched
+        .acknowledge_hello(Some(session_id), None, 11)
+        .unwrap();
     assert_eq!(
         serde_json::to_value(&rejection).unwrap()["data"],
         json!({"accepted": false, "config": {}})
     );
     assert!(rejection.accepted_session(&hello_id).is_none());
+    assert!(ack.acknowledge_hello(None, None, 11).is_none());
+}
+
+fn desktop_nonce() -> Nonce {
+    Nonce::try_from("0f1e2d3c4b5a69788796a5b4c3d2e1f0".to_owned()).unwrap()
+}
+
+#[test]
+fn hello_ack_carries_a_proof_only_for_a_paired_robot_with_a_session_and_key() {
+    let key = PairKey::from_bytes(core::array::from_fn(|index| index as u8));
+    let session_id = StableId::new("session_1").unwrap();
+    let paired: ControlMessage = serde_json::from_value(control("hello_paired")).unwrap();
+    let ack = paired
+        .acknowledge_hello(Some(session_id.clone()), Some((&key, desktop_nonce())), 11)
+        .unwrap();
+    let ControlMessage::HelloAck { data, .. } = &ack else {
+        panic!("expected hello_ack");
+    };
+    assert_eq!(
+        serde_json::to_value(&ack).unwrap(),
+        control("hello_ack_proof")
+    );
+    assert!(data.proof.is_some());
+    assert_eq!(data.desktop_nonce, Some(desktop_nonce()));
+
+    let proof_of = |message: Option<ControlMessage>| match message.unwrap() {
+        ControlMessage::HelloAck { data, .. } => {
+            assert_eq!(data.proof.is_some(), data.desktop_nonce.is_some());
+            data.proof
+        }
+        _ => panic!("expected hello_ack"),
+    };
+    assert!(proof_of(paired.acknowledge_hello(Some(session_id.clone()), None, 11)).is_none());
+    assert!(proof_of(paired.acknowledge_hello(None, Some((&key, desktop_nonce())), 11)).is_none());
+    let unpaired: ControlMessage = serde_json::from_value(control("hello")).unwrap();
+    assert!(
+        proof_of(unpaired.acknowledge_hello(Some(session_id), Some((&key, desktop_nonce())), 11))
+            .is_none()
+    );
+    let ControlMessage::Hello { data, .. } = &paired else {
+        panic!("expected hello");
+    };
+    assert_eq!(
+        data.nonce,
+        Nonce::try_from("00112233445566778899aabbccddeeff".to_owned()).unwrap()
+    );
 }
 
 #[test]
@@ -198,4 +226,23 @@ fn malformed_control_messages_are_rejected() {
     let mut negative = control("heartbeat");
     negative["data"]["uptime_ms"] = json!(-1);
     assert!(serde_json::from_value::<ControlMessage>(negative).is_err());
+}
+
+#[test]
+fn cobs_vectors_encode_and_decode_identically_to_the_shared_files() {
+    let vectors = rows(include_str!("fixtures/cobs-vectors.tsv"));
+    assert!(vectors.len() >= 16);
+    for fields in vectors {
+        let [name, raw, encoded] = fields[..] else {
+            panic!("invalid fixture: {fields:?}");
+        };
+        let (raw, encoded) = (hex(raw), hex(encoded));
+        let mut output = [0; MAX_ENCODED_LEN];
+        let written = cobs::try_encode(&raw, &mut output).unwrap();
+        assert_eq!(output[..written], encoded, "{name}");
+        let mut decoded = [0; MAX_DECODED_LEN];
+        let report = cobs::decode(&encoded, &mut decoded).unwrap();
+        assert_eq!(report.parsed_size(), encoded.len(), "{name}");
+        assert_eq!(decoded[..report.frame_size()], raw, "{name}");
+    }
 }

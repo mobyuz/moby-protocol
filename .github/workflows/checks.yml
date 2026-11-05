@@ -41,10 +41,10 @@ jobs:
         run: npm run generate:check
       - name: TypeScript and JSON Schema contract tests
         run: npm test
-      - name: C host USB wire vectors
+      - name: C codec and wire vectors
         if: runner.os == 'Linux'
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -pedantic -I include tests/usb_vectors.c -o "$RUNNER_TEMP/moby-usb-vectors"
-          "$RUNNER_TEMP/moby-usb-vectors" tests/fixtures/usb-vectors.tsv
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -I include c/moby_usb_codec.c tests/usb_vectors.c -o "$RUNNER_TEMP/moby-usb-vectors"
+          "$RUNNER_TEMP/moby-usb-vectors" tests/fixtures
       - name: Build release package without publishing
         run: npm pack --dry-run

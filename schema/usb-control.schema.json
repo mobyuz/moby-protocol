@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ControlMessage",
-  "description": "Control messages in the first USB v1 host slice.",
+  "description": "Every USB v1 control message. The `name` selects the variant, the\nvariant fixes the envelope `kind`, and unknown names and fields fail.",
   "oneOf": [
     {
       "type": "object",
@@ -18,41 +18,6 @@
         "name": {
           "type": "string",
           "const": "hello"
-        },
-        "ts_ms": {
-          "type": "integer",
-          "maximum": 4294967295,
-          "minimum": 0
-        },
-        "v": {
-          "$ref": "#/$defs/ControlVersion"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "v",
-        "kind",
-        "id",
-        "ts_ms",
-        "data"
-      ]
-    },
-    {
-      "type": "object",
-      "properties": {
-        "data": {
-          "$ref": "#/$defs/HelloAck"
-        },
-        "id": {
-          "$ref": "#/$defs/StableId"
-        },
-        "kind": {
-          "$ref": "#/$defs/ResponseKind"
-        },
-        "name": {
-          "type": "string",
-          "const": "hello_ack"
         },
         "ts_ms": {
           "type": "integer",
@@ -107,16 +72,1061 @@
         "ts_ms",
         "data"
       ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/WakeDetected"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "wake_detected"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ButtonEvent"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "button_event"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/MuteChanged"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "mute_changed"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AudioStart"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "audio_start"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AudioEnd"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "audio_end"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ErrorInfo"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "error"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The talk button was pressed during the pairing window.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Empty"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "pair_button_confirmed"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "A 10 s long press wiped the robot's pairing key.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Empty"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "pair_reset"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The robot's proof that it holds the pair key. It is the first event of a\nsession whose desktop proof verified, and never otherwise.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SessionProof"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "session_proof"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The response to `hello`, carrying a proof and a nonce when the robot is\npaired.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/HelloAck"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResponseKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "hello_ack"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SetExpression"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "expression"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/DisplayText"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "display_text"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AudioPlay"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "audio_play_start"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AudioPlay"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "audio_play_end"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Cancel"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "cancel"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/DeviceConfig"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "set_config"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ServoPose"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "servo_pose"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/PairBegin"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "pair_begin"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/PairSetKey"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "pair_set_key"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The robot accepted and applied the command with the same ID.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/Empty"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResponseKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "command_ok"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The robot refused or failed the command with the same ID.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ErrorInfo"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResponseKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "command_error"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
     }
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
+    "ActionDurationMs": {
+      "description": "How long an expression or servo move lasts. Zero holds until the next command.",
+      "type": "integer",
+      "maximum": 60000,
+      "minimum": 0
+    },
+    "AudioCodec": {
+      "oneOf": [
+        {
+          "description": "Signed 16-bit little-endian PCM.",
+          "type": "string",
+          "const": "pcm_s16le"
+        }
+      ]
+    },
+    "AudioEnd": {
+      "type": "object",
+      "properties": {
+        "duration_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "frames": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "reason": {
+          "$ref": "#/$defs/AudioEndReason"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/AudioStreamId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "reason",
+        "frames",
+        "duration_ms"
+      ]
+    },
+    "AudioEndReason": {
+      "type": "string",
+      "enum": [
+        "vad_silence",
+        "max_duration",
+        "button_release",
+        "mute",
+        "cancel",
+        "error"
+      ]
+    },
+    "AudioPlay": {
+      "description": "Describes the desktop's audio for `audio_play_start` and `audio_play_end`.",
+      "type": "object",
+      "properties": {
+        "codec": {
+          "$ref": "#/$defs/AudioCodec"
+        },
+        "sample_rate": {
+          "$ref": "#/$defs/SampleRate"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/AudioStreamId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "codec",
+        "sample_rate"
+      ]
+    },
+    "AudioStart": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "$ref": "#/$defs/ChannelCount"
+        },
+        "codec": {
+          "$ref": "#/$defs/AudioCodec"
+        },
+        "frame_ms": {
+          "$ref": "#/$defs/FrameMs"
+        },
+        "preroll_ms": {
+          "$ref": "#/$defs/PrerollMs"
+        },
+        "reason": {
+          "$ref": "#/$defs/AudioStartReason"
+        },
+        "sample_rate": {
+          "$ref": "#/$defs/SampleRate"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/AudioStreamId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "reason",
+        "codec",
+        "sample_rate",
+        "channels",
+        "frame_ms",
+        "preroll_ms"
+      ]
+    },
+    "AudioStartReason": {
+      "type": "string",
+      "enum": [
+        "wake",
+        "button"
+      ]
+    },
+    "AudioStreamId": {
+      "description": "A nonzero audio stream, matching the frame header's stream ID.",
+      "type": "integer",
+      "maximum": 65535,
+      "minimum": 1
+    },
+    "Button": {
+      "type": "string",
+      "enum": [
+        "talk"
+      ]
+    },
+    "ButtonAction": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "press",
+            "release"
+          ]
+        },
+        {
+          "description": "Held for the robot's long-press time. A 10 s hold wipes pairing.",
+          "type": "string",
+          "const": "long_press"
+        }
+      ]
+    },
+    "ButtonEvent": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/ButtonAction"
+        },
+        "button": {
+          "$ref": "#/$defs/Button"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "button",
+        "action"
+      ]
+    },
+    "Cancel": {
+      "type": "object",
+      "properties": {
+        "stream_id": {
+          "$ref": "#/$defs/AudioStreamId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "stream_id"
+      ]
+    },
+    "Capabilities": {
+      "description": "Capability IDs a robot advertises: at most 8, so the longest hello fits one frame.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StableId"
+      },
+      "maxItems": 8
+    },
+    "ChannelCount": {
+      "description": "Interleaved PCM channels.",
+      "type": "integer",
+      "maximum": 2,
+      "minimum": 1
+    },
+    "CommandKind": {
+      "description": "The envelope `kind` of desktop requests. Each one gets a response.",
+      "type": "string",
+      "enum": [
+        "command"
+      ]
+    },
     "ControlVersion": {
       "type": "integer",
       "const": 1,
       "minimum": 0
     },
+    "DeviceConfig": {
+      "description": "Optional device settings. The robot applies the fields present and keeps\nthe rest. `hello_ack` and `set_config` share this type.",
+      "type": "object",
+      "properties": {
+        "max_utterance_ms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaxUtteranceMs"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speaker_volume": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vad_silence_ms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VadSilenceMs"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "wake_sensitivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DisplayText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/ScreenText"
+        },
+        "ttl_ms": {
+          "$ref": "#/$defs/TextTtlMs"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "ttl_ms"
+      ]
+    },
+    "Empty": {
+      "description": "The empty `data` object of messages that carry no fields.",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "ErrorCode": {
+      "description": "Robot error codes. The same codes appear in `error` events and in\n`command_error` responses.",
+      "type": "string",
+      "enum": [
+        "E_PROTO_VERSION",
+        "E_BAD_FRAME",
+        "E_CRC",
+        "E_STATE",
+        "E_MUTED",
+        "E_BUSY",
+        "E_AUDIO_OVERRUN",
+        "E_TIMEOUT",
+        "E_UNSUPPORTED",
+        "E_HW"
+      ]
+    },
+    "ErrorDetail": {
+      "description": "A diagnostic for people, never a secret.",
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]+(?![\\s\\S])"
+    },
+    "ErrorInfo": {
+      "description": "The payload of an `error` event and of a `command_error` response.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "detail": {
+          "$ref": "#/$defs/ErrorDetail"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "detail"
+      ]
+    },
     "EventKind": {
+      "description": "The envelope `kind` of robot notifications.",
       "type": "string",
       "enum": [
         "event"
@@ -136,6 +1146,12 @@
         "muted",
         "disconnected"
       ]
+    },
+    "FrameMs": {
+      "description": "Audio per frame. One frame of PCM must fit in `MAX_PAYLOAD_LEN`.",
+      "type": "integer",
+      "maximum": 60,
+      "minimum": 10
     },
     "Heartbeat": {
       "type": "object",
@@ -163,21 +1179,26 @@
       "type": "object",
       "properties": {
         "capabilities": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/StableId"
-          }
+          "$ref": "#/$defs/Capabilities"
         },
         "device_id": {
           "$ref": "#/$defs/StableId"
         },
         "fw_version": {
-          "type": "string"
+          "$ref": "#/$defs/VersionText"
         },
         "hw_rev": {
-          "type": "string"
+          "$ref": "#/$defs/VersionText"
         },
         "mute": {
+          "type": "boolean"
+        },
+        "nonce": {
+          "description": "Fresh for every hello, so a recorded proof cannot be replayed.",
+          "$ref": "#/$defs/Nonce"
+        },
+        "paired": {
+          "description": "Whether the robot holds a pairing key.",
           "type": "boolean"
         },
         "protocol_version": {
@@ -193,17 +1214,28 @@
         "fw_version",
         "protocol_version",
         "capabilities",
-        "mute"
+        "mute",
+        "paired",
+        "nonce"
       ]
     },
     "HelloAck": {
+      "description": "`proof` and `desktop_nonce` are both present or both absent, and neither\nmay be `null`: the nonce\nexists only so the robot can prove itself back, which it does only after\nthe desktop's proof verified.",
       "type": "object",
       "properties": {
         "accepted": {
           "type": "boolean"
         },
         "config": {
-          "$ref": "#/$defs/HelloConfig"
+          "$ref": "#/$defs/DeviceConfig"
+        },
+        "desktop_nonce": {
+          "description": "Fresh for every `hello_ack`; present exactly when `proof` is. The\nrobot's `session_proof` covers it.",
+          "$ref": "#/$defs/Nonce"
+        },
+        "proof": {
+          "description": "Present only when the robot reported `paired` and the desktop holds\nthe key.",
+          "$ref": "#/$defs/Proof"
         },
         "session_id": {
           "anyOf": [
@@ -217,19 +1249,186 @@
         }
       },
       "additionalProperties": false,
+      "dependentRequired": {
+        "desktop_nonce": [
+          "proof"
+        ],
+        "proof": [
+          "desktop_nonce"
+        ]
+      },
       "required": [
         "accepted",
         "config"
       ]
     },
-    "HelloConfig": {
+    "MaxUtteranceMs": {
+      "description": "The longest utterance before the robot stops listening.",
+      "type": "integer",
+      "maximum": 60000,
+      "minimum": 1000
+    },
+    "MuteChanged": {
       "type": "object",
-      "additionalProperties": false
+      "properties": {
+        "muted": {
+          "type": "boolean"
+        },
+        "source": {
+          "$ref": "#/$defs/MuteSource"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "muted",
+        "source"
+      ]
+    },
+    "MuteSource": {
+      "oneOf": [
+        {
+          "description": "The user moved the hardware mute control.",
+          "type": "string",
+          "const": "switch"
+        },
+        {
+          "description": "The robot reports the control's position at startup.",
+          "type": "string",
+          "const": "boot"
+        }
+      ]
+    },
+    "Nonce": {
+      "description": "A fresh random value the robot sends in `hello`: 16 bytes.",
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 32,
+      "pattern": "^[0-9a-f]{32}(?![\\s\\S])"
+    },
+    "PairBegin": {
+      "type": "object",
+      "properties": {
+        "timeout_ms": {
+          "$ref": "#/$defs/PairTimeoutMs"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "timeout_ms"
+      ]
+    },
+    "PairKey": {
+      "description": "The shared pairing secret: 32 random bytes. `Debug` never prints it.\nSerialization still writes the key, because `pair_set_key` sends it.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "PairSetKey": {
+      "type": "object",
+      "properties": {
+        "pair_key": {
+          "$ref": "#/$defs/PairKey"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "pair_key"
+      ]
+    },
+    "PairTimeoutMs": {
+      "description": "The window for the physical button press that confirms pairing.",
+      "type": "integer",
+      "maximum": 30000,
+      "minimum": 1000
+    },
+    "Percent": {
+      "description": "A setting expressed from 0 to 100.",
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0
+    },
+    "PrerollMs": {
+      "description": "Audio kept from before the wake word or button press.",
+      "type": "integer",
+      "maximum": 2000,
+      "minimum": 0
+    },
+    "Proof": {
+      "description": "HMAC-SHA256 over the session input: 32 bytes.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
     },
     "ResponseKind": {
       "type": "string",
       "enum": [
         "response"
+      ]
+    },
+    "SampleRate": {
+      "description": "PCM samples per second per channel.",
+      "type": "integer",
+      "maximum": 48000,
+      "minimum": 8000
+    },
+    "ScreenText": {
+      "description": "A short line for the robot's screen. Control characters are rejected.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]+(?![\\s\\S])"
+    },
+    "ServoPose": {
+      "type": "object",
+      "properties": {
+        "duration_ms": {
+          "$ref": "#/$defs/ActionDurationMs"
+        },
+        "pose": {
+          "description": "A pose the firmware knows by name. Unknown names get `E_UNSUPPORTED`.",
+          "$ref": "#/$defs/StableId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "pose",
+        "duration_ms"
+      ]
+    },
+    "SessionProof": {
+      "description": "The robot's proof that it holds the pair key, sent once as the first event\nof an authenticated session.",
+      "type": "object",
+      "properties": {
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "proof"
+      ]
+    },
+    "SetExpression": {
+      "type": "object",
+      "properties": {
+        "animation": {
+          "description": "An animation the firmware knows by name. Unknown names get `E_UNSUPPORTED`.",
+          "$ref": "#/$defs/StableId"
+        },
+        "duration_ms": {
+          "$ref": "#/$defs/ActionDurationMs"
+        },
+        "state": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "animation",
+        "duration_ms"
       ]
     },
     "StableId": {
@@ -238,6 +1437,41 @@
       "maxLength": 64,
       "minLength": 1,
       "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    },
+    "TextTtlMs": {
+      "description": "How long display text stays on screen.",
+      "type": "integer",
+      "maximum": 60000,
+      "minimum": 100
+    },
+    "VadSilenceMs": {
+      "description": "Silence that ends an utterance.",
+      "type": "integer",
+      "maximum": 5000,
+      "minimum": 200
+    },
+    "VersionText": {
+      "description": "A hardware, firmware, or model version without whitespace.",
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 1,
+      "pattern": "^[\\x21-\\x7e]+(?![\\s\\S])"
+    },
+    "WakeDetected": {
+      "type": "object",
+      "properties": {
+        "model_id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "model_version": {
+          "$ref": "#/$defs/VersionText"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "model_version"
+      ]
     }
   }
 }

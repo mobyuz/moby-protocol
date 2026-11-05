@@ -92,6 +92,12 @@ test("agent schemas reject unrecognized roles, tools, and payload fields", () =>
   assert.equal(validateRequest({ ...request, available_tools: ["run_shell"] }), false);
   assert.equal(validateRequest({ ...request, messages: [{ kind: "system", text: "test" }] }), false);
   assert.equal(validateRequest({ ...request, language: "fr" }), false);
+  assert.equal(validateRequest({ ...request, local_time: "2026-11-05T09:30:00+05:00" }), true);
+  assert.equal(validateRequest({ ...request, local_time: "2026-11-05T09:30:00" }), false);
+  assert.equal(validateRequest({ ...request, local_time: "not a time" }), false);
+  assert.equal(validateRequest({ ...request, local_time: "2026-11-05T09:30:00.123456789012+05:00" }), false);
+  assert.equal(validateRequest({ ...request, timezone: "Asia/Tashkent" }), false);
+  assert.equal(validateRequest(fixture.agent_turn_requests[1]), true);
   const response = fixture.agent_turn_responses[1];
   assert.equal(validators["agent-turn-response"]({
     ...response,

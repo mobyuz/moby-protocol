@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AgentTurnRequest",
-  "description": "Context for a stateless turn. Locale fields are optional hints.",
+  "description": "Context for a stateless turn. Locale and time fields are optional hints.",
   "type": "object",
   "properties": {
     "available_tools": {
@@ -14,6 +14,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Language"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "local_time": {
+      "description": "The user's current time, so the model can resolve relative reminder\ntimes. Absent when the desktop cannot tell.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalTime"
         },
         {
           "type": "null"
@@ -49,7 +60,7 @@
     "available_tools",
     "resources"
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "AgentMessage": {
       "oneOf": [
@@ -130,6 +141,13 @@
         "ru",
         "en"
       ]
+    },
+    "LocalTime": {
+      "description": "The user's current time as an RFC 3339 timestamp with a mandatory UTC\noffset, such as `2026-11-05T09:30:00+05:00`. It uses the same format as the\nreminder `due_at` and is at most 35 characters.",
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 35,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-5][0-9](?:\\.[0-9]{1,9})?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})(?![\\s\\S])"
     },
     "ReminderText": {
       "description": "User-visible reminder content, treated as plain text.",

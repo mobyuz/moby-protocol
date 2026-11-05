@@ -111,7 +111,7 @@
       ]
     }
   ],
-  "x-package-version": "0.1.0",
+  "x-package-version": "0.2.0",
   "$defs": {
     "ReminderText": {
       "description": "User-visible reminder content, treated as plain text.",

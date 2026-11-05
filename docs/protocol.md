@@ -1,4 +1,4 @@
-# Protocol 0.1.0
+# Protocol 0.2.0
 
 Rust definitions in `src/` are authoritative. Generated schemas use JSON Schema
 2020-12 in deserialization mode, include `x-package-version`, and reject extra
@@ -42,10 +42,20 @@ format validation in JSON Schema validators, for example with `ajv-formats`.
 ## Agent turn
 
 `AgentTurnRequest` carries the message history, the names of available tools,
-and optional language and script hints. Its `resources` list describes the
+and optional language, script, and `local_time` hints. Its `resources` list describes the
 desktop's advertised resources by `kind`, `id`, and `display_name`. The kinds
 `app`, `project`, and `search_root` map to `app_id`, `project_id`, and `root_id`.
 Send labels and registry IDs. Keep actual paths in the desktop registry.
+
+`local_time` is the user's current time, for example
+`2026-11-05T09:30:00+05:00`. It uses the same RFC 3339 profile as `due_at`: an
+explicit numeric offset or `Z` is required, at most nine fractional digits, and
+at most 35 characters. A value without an offset, a bare date, or free text is
+rejected, as is an unknown sibling field such as a time zone name. The desktop
+sets it on every request when it can read its clock; without it the model has
+no clock and cannot work out a zoned `due_at` from "in an hour" or "tomorrow".
+The API treats the value as data and does not log it. It is optional, and a
+request without it stays valid.
 
 `AgentTurnResponse` describes one JSON stream event. A response can send zero
 or more `speech_delta` events, then exactly one terminal `completed`,
@@ -94,6 +104,209 @@ Rows are the old state; columns are the requested new state. Y is permitted:
 `canTransition` derives its table from that function. Shared fixtures independently
 specify every pair and are tested by both languages. Offline rendering and
 connection detection are consumer responsibilities, using `disconnected` locally.
+
+## USB control messages
+
+Frames follow the [USB v1 decision record](adr/0003-usb-v1-host-framing.md).
+A control frame carries one JSON envelope:
+
+```json
+{"v":1,"kind":"event","name":"heartbeat","id":"e-0002","ts_ms":2010,"data":{"state":"idle","mute":false,"uptime_ms":2010}}
+```
+
+`v` is `1`. `kind` is `event`, `command`, or `response`, and `name` selects the
+payload. `id` is a registry ID and `ts_ms` is an unsigned 32-bit counter.
+Unknown names, extra fields at either level, and a `kind` that does not belong
+to the `name` are rejected. A duplicate field fails in Rust only, as with the
+tool types. The robot sends events; the desktop sends commands. The longest
+valid message, a `hello` with eight 64-character capabilities, fits the
+1024-byte payload limit.
+
+| Name | Kind | Sender | Data |
+| --- | --- | --- | --- |
+| `hello` | event | robot | `device_id`, `hw_rev`, `fw_version`, `protocol_version`, `capabilities`, `mute`, `paired`, `nonce` |
+| `hello_ack` | response | desktop | `accepted`, optional `session_id`, optional `proof` and `desktop_nonce` (both or neither), `config` |
+| `session_proof` | event | robot | `proof` |
+| `heartbeat` | event | robot | `state`, `mute`, `uptime_ms` |
+| `wake_detected` | event | robot | `model_id`, `model_version` |
+| `button_event` | event | robot | `button` (`talk`), `action` (`press`, `release`, `long_press`) |
+| `mute_changed` | event | robot | `muted`, `source` (`switch`, `boot`) |
+| `audio_start` | event | robot | `stream_id`, `reason` (`wake`, `button`), `codec`, `sample_rate`, `channels`, `frame_ms`, `preroll_ms` |
+| `audio_end` | event | robot | `stream_id`, `reason`, `frames`, `duration_ms` |
+| `error` | event | robot | `code`, `detail` |
+| `expression` | command | desktop | `state`, `animation`, `duration_ms` |
+| `display_text` | command | desktop | `text`, `ttl_ms` |
+| `audio_play_start`, `audio_play_end` | command | desktop | `stream_id`, `codec`, `sample_rate` |
+| `cancel` | command | desktop | `stream_id` |
+| `set_config` | command | desktop | optional `wake_sensitivity`, `speaker_volume`, `vad_silence_ms`, `max_utterance_ms` |
+| `servo_pose` | command | desktop | `pose`, `duration_ms` |
+| `pair_begin` | command | desktop | `timeout_ms` |
+| `pair_set_key` | command | desktop | `pair_key` |
+| `pair_button_confirmed`, `pair_reset` | event | robot | none |
+| `command_ok` | response | robot | none |
+| `command_error` | response | robot | `code`, `detail` |
+
+### Desktop keepalive
+
+The robot sends a `heartbeat` every 2 s. It ends the session after three of its
+heartbeats pass with no valid frame from the desktop, about 8 s. While
+connected, the desktop must therefore send a frame at least every 2 s. Any
+valid frame counts, so a command already in flight is enough. With nothing else
+to send, the desktop sends an empty `set_config` (`"data":{}`), which changes
+no setting. The robot answers `command_ok`, and the desktop ignores it. Like any
+command it carries a fresh `id`, and a `command_error` is not expected. After the
+robot ends a session, the desktop starts over with a new `hello` exchange.
+
+Every command gets exactly one response from the robot with the command's `id`:
+`command_ok`, or `command_error` with an error code. The `error` event name was
+already taken by the robot's unsolicited errors, so responses use the
+`command_` prefix. `hello_ack` answers the `hello` event with its `id`.
+
+`audio_end.reason` is `vad_silence`, `max_duration`, `button_release`, `mute`,
+`cancel`, or `error`. The only codec is `pcm_s16le`. `animation` and `pose`
+are IDs the firmware knows by name; an unknown one gets `E_UNSUPPORTED`. The
+`hello_ack` `config` and `set_config` share one object. The robot applies the
+fields present and keeps the rest; null counts as absent.
+
+Error codes are `E_PROTO_VERSION`, `E_BAD_FRAME`, `E_CRC`, `E_STATE`,
+`E_MUTED`, `E_BUSY`, `E_AUDIO_OVERRUN`, `E_TIMEOUT`, `E_UNSUPPORTED`, and
+`E_HW`. `detail` is for people and never carries a key or proof.
+
+Rust validates every bound when it decodes, and JSON Schema states the same
+bounds. Ranges are inclusive:
+
+| Field | Range |
+| --- | --- |
+| `stream_id` | 1–65535 |
+| `sample_rate` | 8000–48000 Hz |
+| `channels` | 1–2 |
+| `frame_ms` | 10–60 |
+| `preroll_ms` | 0–2000 |
+| `duration_ms` (`expression`, `servo_pose`) | 0–60000 |
+| `ttl_ms` | 100–60000 |
+| `timeout_ms` | 1000–30000 |
+| `wake_sensitivity`, `speaker_volume` | 0–100 |
+| `vad_silence_ms` | 200–5000 |
+| `max_utterance_ms` | 1000–60000 |
+| `display_text.text` | 1–64 code points, no control characters |
+| `error.detail` | 1–128 code points, no control characters |
+| `hw_rev`, `fw_version`, `model_version` | 1–32 printable ASCII characters, no space |
+| `capabilities` | at most 8 registry IDs |
+| `frames`, `duration_ms` (`audio_end`), `uptime_ms`, `ts_ms`, `protocol_version` | unsigned 32-bit |
+
+The range checks cannot see that one PCM frame must fit the 1024-byte payload
+limit; the sender picks parameters accordingly, and `AudioStart::frame_bytes`
+computes the size (640 for 16 kHz mono at 20 ms).
+
+### Pairing and session authentication
+
+See the [decision record](adr/0004-pairing-and-session-auth.md) for the
+reasons. Keys, nonces, and proofs are lowercase hexadecimal: a nonce is 16
+bytes (32 digits), and a `pair_key` and a `proof` are 32 bytes (64 digits).
+
+1. The robot makes a random 128-bit `device_id` on first boot. Its `hello`
+   carries `paired` (whether it holds a key) and a fresh random `nonce`.
+2. The desktop answers with `hello_ack`. A `session_id` admits the session.
+   When the robot reported `paired` and the desktop holds the key, the ack
+   also carries two fields that appear together or not at all, and never as
+   `null`:
+   - `proof = HMAC-SHA256(pair_key, nonce || device_id || 0x00 || session_id)`:
+     the 16 `hello` nonce bytes, the device ID text, one zero byte, and the
+     session ID text. This is the desktop proof and its input is unchanged.
+   - `desktop_nonce`: 16 fresh random bytes as 32 lowercase hexadecimal digits,
+     made by the desktop for this ack and never reused.
+
+   An unpaired robot gets neither.
+3. A paired robot checks the desktop proof in constant time. A bad or missing
+   proof leaves the session unauthenticated and the robot sends `error` with
+   `E_STATE`. It computes no HMAC and sends no `session_proof`, so a peer that
+   cannot prove the key gets nothing from the robot to replay or reflect. An
+   unauthenticated session cannot start audio: the robot sends no
+   `audio_start`, and `audio_play_start` gets `E_STATE`.
+4. When the desktop proof verified, the first event the robot sends after that
+   is `session_proof`, before any `audio_start` or other event. Its `proof` is
+   lowercase hexadecimal of
+
+   `HMAC-SHA256(pair_key, "moby-robot-proof-v1" || 0x00 || desktop_nonce || robot_nonce || device_id || 0x00 || session_id)`
+
+   where the label is its 19 ASCII bytes, `desktop_nonce` and `robot_nonce` (the
+   `hello` nonce) are the 16 raw bytes of each, and the IDs are text. The robot
+   then clears both nonces. The label keeps the two proofs apart: a desktop proof
+   input starts with a nonce and then a device ID, which never starts with `-`,
+   while the label has `-` at byte 16, so neither proof can be reflected as the
+   other even when one side picks its nonce to match the label.
+   A heartbeat the robot queued before it read the ack can arrive first; only
+   events after the verification are ordered.
+5. The desktop verifies `session_proof` in constant time against the
+   `desktop_nonce` it sent. It accepts no robot audio (no `audio_start` and no
+   audio frames) from a robot it has not proven, and it makes no use of
+   such audio. If no valid `session_proof` arrives within 3 s of sending
+   `hello_ack` (the handshake window), or one arrives that fails
+   verification, the desktop treats the robot as unproven: it uploads nothing,
+   feeds nothing to the agent, tells the user that the device could not prove
+   it holds the pairing key, and may disconnect. Only the first `session_proof`
+   counts. This rule applies whenever the desktop sent a `desktop_nonce`.
+6. To pair, the desktop asks the user on screen, then sends `pair_begin` with a
+   timeout of at most 30 s. An unpaired idle robot answers `command_ok` and
+   waits for a talk-button press. A paired robot answers `E_STATE` and one
+   already waiting answers `E_BUSY`.
+7. The press produces `pair_button_confirmed` instead of audio. If the window
+   ends first, the robot sends `error` with `E_TIMEOUT`.
+8. The desktop makes 32 random bytes and sends `pair_set_key`. The robot
+   accepts it only after the button confirmation, stores it, answers
+   `command_ok`, and treats the session as authenticated. Otherwise it answers
+   `E_STATE`. That session had no `desktop_nonce`, so it carries no
+   `session_proof` and the robot is not proven on it. The desktop treats it
+   as unproven for audio and starts a new `hello` exchange right away; the
+   first proven session is the next one.
+9. A 10 s long press wipes the key. The robot sends `pair_reset`, becomes
+   unpaired, and the session becomes unauthenticated. `pair_reset` cannot carry
+   a proof, because the robot has just erased its key, so any USB device can send
+   one. The desktop must not delete its stored key on `pair_reset` alone. It
+   marks the pairing stale, accepts no audio from that device until it is
+   proven or re-paired, and asks the user whether to keep the key or remove the
+   pairing. The same applies to a `hello` with `paired: false` from a device
+   ID the desktop holds a key for: it is stale, not a new unpaired robot, and the
+   desktop does not send `pair_set_key` to it without the user's confirmation.
+
+The key travels once over USB without encryption, so the first pairing trusts
+the cable and the button press. After that, both sides prove the key at the
+start of each session, but later frames carry no MAC: a device that takes over
+the cable after the handshake, or relays it, is not stopped. See the decision
+records for the limits ([0004](adr/0004-pairing-and-session-auth.md),
+[0005](adr/0005-robot-proof-of-key.md)). `PairKey` prints as
+`PairKey(<redacted>)` in `Debug` output and never in errors.
+`tests/fixtures/proof-vectors.tsv`, `robot-proof-vectors.tsv`,
+`reflection-vectors.tsv`, and `hmac-vectors.tsv` hold vectors for firmware to
+check its mbedTLS code against. The key in those files is test-only.
+
+### C codec
+
+`include/moby_usb_codec.h` and `c/moby_usb_codec.c` implement CRC-32, COBS,
+the bounded streaming decoder, frame parse and build, ID and hex checks, and
+the desktop and robot proof inputs for firmware and host tests. They use no heap and no JSON;
+firmware parses control JSON with cJSON and computes HMAC with mbedTLS. The
+generated `include/moby_usb.h` holds the field bounds, message names, error
+code strings, an expression enum, and `moby_can_transition`, all from Rust, so
+`npm run generate:check` catches drift. `tests/usb_vectors.c` runs every vector
+file listed below.
+
+### Shared vectors
+
+`scripts/make-usb-vectors.mjs` writes these from Node's CRC and HMAC, not from
+Rust, and the TypeScript tests fail if the files are stale. Rust, TypeScript,
+and C all read them:
+
+| File | Content |
+| --- | --- |
+| `usb-vectors.tsv` | Frame layout, audio frames, and bad frames |
+| `control-vectors.tsv` | Every message name, valid and invalid |
+| `cobs-vectors.tsv` | COBS encodings, including 253, 254, and 255-byte runs |
+| `hmac-vectors.tsv` | RFC 4231 HMAC-SHA256 cases |
+| `proof-vectors.tsv` | Desktop session proof inputs and proofs |
+| `robot-proof-vectors.tsv` | Robot `session_proof` inputs and proofs |
+| `reflection-vectors.tsv` | Desktop and robot inputs that must differ, so neither proof can stand in for the other |
+| `transition-vectors.tsv` | The expression transitions, from `wire.json` |
 
 ## Versions and compatibility
 
