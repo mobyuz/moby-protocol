@@ -22,7 +22,7 @@ device authentication separately. [zlib CRC-32](https://zlib.net/manual.html)
 | 2 | 1 | Flags, zero |
 | 3 | 1 | Reserved, zero |
 | 4 | 2 | Stream ID, zero for control and nonzero for audio |
-| 6 | 4 | Sequence counter for the stream |
+| 6 | 4 | Sequence counter for the stream: `0` on its first frame, then one more per frame |
 | 10 | 2 | Payload length in bytes |
 | 12 | length | UTF-8 control JSON or audio bytes |
 | 12 + length | 4 | CRC-32 |
