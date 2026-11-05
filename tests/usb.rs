@@ -160,13 +160,17 @@ fn handshake_requires_a_matching_id_compatible_protocol_and_local_admission() {
     assert!(ack.acknowledge_hello(None, None, 11).is_none());
 }
 
+fn desktop_nonce() -> Nonce {
+    Nonce::try_from("0f1e2d3c4b5a69788796a5b4c3d2e1f0".to_owned()).unwrap()
+}
+
 #[test]
 fn hello_ack_carries_a_proof_only_for_a_paired_robot_with_a_session_and_key() {
     let key = PairKey::from_bytes(core::array::from_fn(|index| index as u8));
     let session_id = StableId::new("session_1").unwrap();
     let paired: ControlMessage = serde_json::from_value(control("hello_paired")).unwrap();
     let ack = paired
-        .acknowledge_hello(Some(session_id.clone()), Some(&key), 11)
+        .acknowledge_hello(Some(session_id.clone()), Some((&key, desktop_nonce())), 11)
         .unwrap();
     let ControlMessage::HelloAck { data, .. } = &ack else {
         panic!("expected hello_ack");
@@ -176,15 +180,22 @@ fn hello_ack_carries_a_proof_only_for_a_paired_robot_with_a_session_and_key() {
         control("hello_ack_proof")
     );
     assert!(data.proof.is_some());
+    assert_eq!(data.desktop_nonce, Some(desktop_nonce()));
 
     let proof_of = |message: Option<ControlMessage>| match message.unwrap() {
-        ControlMessage::HelloAck { data, .. } => data.proof,
+        ControlMessage::HelloAck { data, .. } => {
+            assert_eq!(data.proof.is_some(), data.desktop_nonce.is_some());
+            data.proof
+        }
         _ => panic!("expected hello_ack"),
     };
     assert!(proof_of(paired.acknowledge_hello(Some(session_id.clone()), None, 11)).is_none());
-    assert!(proof_of(paired.acknowledge_hello(None, Some(&key), 11)).is_none());
+    assert!(proof_of(paired.acknowledge_hello(None, Some((&key, desktop_nonce())), 11)).is_none());
     let unpaired: ControlMessage = serde_json::from_value(control("hello")).unwrap();
-    assert!(proof_of(unpaired.acknowledge_hello(Some(session_id), Some(&key), 11)).is_none());
+    assert!(
+        proof_of(unpaired.acknowledge_hello(Some(session_id), Some((&key, desktop_nonce())), 11))
+            .is_none()
+    );
     let ControlMessage::Hello { data, .. } = &paired else {
         panic!("expected hello");
     };

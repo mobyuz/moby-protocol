@@ -126,7 +126,7 @@ test("every control vector is framed correctly and validated as labeled", () => 
 });
 
 test("every message name has a positive vector and matches the generated catalog", () => {
-  assert.equal(CONTROL_MESSAGES.length, 22);
+  assert.equal(CONTROL_MESSAGES.length, 23);
   const valid = controlRows.filter(([, verdict]) => verdict === "valid").map(([name]) => controlJson(name));
   for (const { name, kind, sender } of CONTROL_MESSAGES) {
     const samples = valid.filter((message) => message.name === name);
@@ -145,7 +145,8 @@ test("every message name has a positive vector and matches the generated catalog
 });
 
 test("USB control schema rejects extra fields, other kinds, and missing fields", () => {
-  const optional = ["session_id", "proof", "wake_sensitivity", "speaker_volume", "vad_silence_ms", "max_utterance_ms"];
+  // proof and desktop_nonce are not optional on their own: they go together.
+  const optional = ["session_id", "wake_sensitivity", "speaker_volume", "vad_silence_ms", "max_utterance_ms"];
   for (const [name, verdict] of controlRows) {
     if (verdict !== "valid") continue;
     const message = controlJson(name);
@@ -262,6 +263,53 @@ test("HMAC and session proof vectors agree with Node's crypto", async () => {
   assert.equal(controlJson("hello_ack_proof").data.proof, proofs[0][6]);
   const proofOf = (name) => proofs.find(([candidate]) => candidate === name)[6];
   assert.notEqual(proofOf("separator_ab_c"), proofOf("separator_a_bc"));
+});
+
+test("robot proof and reflection vectors agree with Node's crypto", async () => {
+  const label = Buffer.from("moby-robot-proof-v1");
+  const robotProofs = await tsv("robot-proof-vectors.tsv");
+  assert.ok(robotProofs.length >= 5);
+  for (const [name, key, desktopNonce, robotNonce, device, session, input, proof] of robotProofs) {
+    const bytes = Buffer.concat([
+      label, Buffer.from([0]), Buffer.from(desktopNonce, "hex"), Buffer.from(robotNonce, "hex"),
+      Buffer.from(device), Buffer.from([0]), Buffer.from(session),
+    ]);
+    assert.equal(bytes.toString("hex"), input, name);
+    assert.equal(createHmac("sha256", Buffer.from(key, "hex")).update(bytes).digest("hex"), proof, name);
+  }
+  // The session_proof control vector carries the first robot proof.
+  assert.equal(controlJson("session_proof").data.proof, robotProofs[0][7]);
+  assert.equal(controlJson("hello_ack_proof").data.desktop_nonce, robotProofs[0][2]);
+  const proofOf = (name) => robotProofs.find(([candidate]) => candidate === name)[7];
+  assert.notEqual(proofOf("separator_ab_c"), proofOf("separator_a_bc"));
+  assert.notEqual(proofOf("robot_proof_1"), proofOf("nonces_swapped"));
+
+  const reflections = await tsv("reflection-vectors.tsv");
+  assert.ok(reflections.length >= 3);
+  for (const [name, key, desktopInput, desktopProof, robotInput, robotProof, difference] of reflections) {
+    const hmac = (hex) => createHmac("sha256", Buffer.from(key, "hex")).update(Buffer.from(hex, "hex")).digest("hex");
+    assert.equal(hmac(desktopInput), desktopProof, name);
+    assert.equal(hmac(robotInput), robotProof, name);
+    assert.notEqual(desktopInput, robotInput, name);
+    assert.notEqual(desktopProof, robotProof, name);
+    const a = Buffer.from(desktopInput, "hex");
+    const b = Buffer.from(robotInput, "hex");
+    let first = 0;
+    while (first < a.length && first < b.length && a[first] === b[first]) first++;
+    assert.equal(first, Number(difference), name);
+    assert.ok(first <= 16, name);
+  }
+});
+
+test("hello_ack requires proof and desktop_nonce together, and neither may be null", () => {
+  const ack = controlJson("hello_ack_proof");
+  assert.equal(validate(ack), true);
+  const without = (field) => ({ ...ack, data: (({ [field]: _, ...rest }) => rest)(ack.data) });
+  assert.equal(validate(without("proof")), false);
+  assert.equal(validate(without("desktop_nonce")), false);
+  assert.equal(validate({ ...ack, data: { ...ack.data, proof: null } }), false);
+  assert.equal(validate({ ...ack, data: { ...ack.data, desktop_nonce: null } }), false);
+  assert.equal(validate(controlJson("hello_ack")), true);
 });
 
 test("checked-in vectors match the generator script", () => {

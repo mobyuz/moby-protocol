@@ -128,12 +128,45 @@ pub fn session_proof_input(nonce: &Nonce, device_id: &StableId, session_id: &Sta
     input
 }
 
+/// Domain label that opens every robot proof input. A desktop proof input
+/// starts with a nonce and then a device ID, and an ID never starts with `-`,
+/// so the two inputs differ at byte 16 at the latest and neither proof can
+/// be presented as the other.
+pub const ROBOT_PROOF_LABEL: &[u8] = b"moby-robot-proof-v1";
+
+/// The exact bytes the robot's `session_proof` covers: [`ROBOT_PROOF_LABEL`],
+/// a zero byte, the 16 desktop nonce bytes, the 16 robot nonce bytes, the
+/// device ID, a zero byte, then the session ID.
+pub fn robot_proof_input(
+    desktop_nonce: &Nonce,
+    robot_nonce: &Nonce,
+    device_id: &StableId,
+    session_id: &StableId,
+) -> Vec<u8> {
+    let mut input = Vec::with_capacity(
+        ROBOT_PROOF_LABEL.len() + 1 + 2 * Nonce::BYTES + device_id.as_str().len() + 1 + 64,
+    );
+    input.extend_from_slice(ROBOT_PROOF_LABEL);
+    input.push(0);
+    input.extend_from_slice(&desktop_nonce.to_bytes());
+    input.extend_from_slice(&robot_nonce.to_bytes());
+    input.extend_from_slice(device_id.as_str().as_bytes());
+    input.push(0);
+    input.extend_from_slice(session_id.as_str().as_bytes());
+    input
+}
+
 impl PairKey {
-    fn mac(&self, nonce: &Nonce, device_id: &StableId, session_id: &StableId) -> HmacSha256 {
+    fn mac(&self, input: &[u8]) -> HmacSha256 {
         let mut mac =
             HmacSha256::new_from_slice(&self.to_bytes()).expect("HMAC accepts any key length");
-        mac.update(&session_proof_input(nonce, device_id, session_id));
+        mac.update(input);
         mac
+    }
+
+    fn tag(&self, input: &[u8]) -> Proof {
+        let tag: [u8; Proof::BYTES] = self.mac(input).finalize().into_bytes().into();
+        Proof::from_bytes(tag)
     }
 
     /// The desktop's proof for `hello_ack`, bound to this hello and session.
@@ -143,15 +176,10 @@ impl PairKey {
         device_id: &StableId,
         session_id: &StableId,
     ) -> Proof {
-        let tag: [u8; Proof::BYTES] = self
-            .mac(nonce, device_id, session_id)
-            .finalize()
-            .into_bytes()
-            .into();
-        Proof::from_bytes(tag)
+        self.tag(&session_proof_input(nonce, device_id, session_id))
     }
 
-    /// Check a proof in constant time.
+    /// Check the desktop's proof in constant time.
     pub fn verify_session_proof(
         &self,
         nonce: &Nonce,
@@ -159,8 +187,44 @@ impl PairKey {
         session_id: &StableId,
         proof: &Proof,
     ) -> bool {
-        self.mac(nonce, device_id, session_id)
+        self.mac(&session_proof_input(nonce, device_id, session_id))
             .verify_slice(&proof.to_bytes())
             .is_ok()
+    }
+
+    /// The robot's proof for the `session_proof` event. It covers both nonces,
+    /// so it is fresh for this `hello_ack` and cannot be replayed.
+    pub fn robot_session_proof(
+        &self,
+        desktop_nonce: &Nonce,
+        robot_nonce: &Nonce,
+        device_id: &StableId,
+        session_id: &StableId,
+    ) -> Proof {
+        self.tag(&robot_proof_input(
+            desktop_nonce,
+            robot_nonce,
+            device_id,
+            session_id,
+        ))
+    }
+
+    /// Check the robot's proof in constant time.
+    pub fn verify_robot_session_proof(
+        &self,
+        desktop_nonce: &Nonce,
+        robot_nonce: &Nonce,
+        device_id: &StableId,
+        session_id: &StableId,
+        proof: &Proof,
+    ) -> bool {
+        self.mac(&robot_proof_input(
+            desktop_nonce,
+            robot_nonce,
+            device_id,
+            session_id,
+        ))
+        .verify_slice(&proof.to_bytes())
+        .is_ok()
     }
 }

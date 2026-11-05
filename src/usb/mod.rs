@@ -24,6 +24,8 @@ pub use message::{
     AudioCodec, AudioEnd, AudioEndReason, AudioPlay, AudioStart, AudioStartReason, Button,
     ButtonAction, ButtonEvent, Cancel, Capabilities, DeviceConfig, DisplayText, Empty, ErrorCode,
     ErrorInfo, Heartbeat, Hello, HelloAck, MuteChanged, MuteSource, PairBegin, PairSetKey,
-    ServoPose, SetExpression, WakeDetected,
+    ServoPose, SessionProof, SetExpression, WakeDetected,
 };
-pub use pairing::{Nonce, PairKey, Proof, session_proof_input};
+pub use pairing::{
+    Nonce, PairKey, Proof, ROBOT_PROOF_LABEL, robot_proof_input, session_proof_input,
+};

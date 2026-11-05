@@ -356,7 +356,43 @@
       ]
     },
     {
-      "description": "The response to `hello`, carrying a proof when the robot is paired.",
+      "description": "The robot's proof that it holds the pair key. It is the first event of a\nsession whose desktop proof verified, and never otherwise.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SessionProof"
+        },
+        "id": {
+          "$ref": "#/$defs/StableId"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "name": {
+          "type": "string",
+          "const": "session_proof"
+        },
+        "ts_ms": {
+          "type": "integer",
+          "maximum": 4294967295,
+          "minimum": 0
+        },
+        "v": {
+          "$ref": "#/$defs/ControlVersion"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "v",
+        "kind",
+        "id",
+        "ts_ms",
+        "data"
+      ]
+    },
+    {
+      "description": "The response to `hello`, carrying a proof and a nonce when the robot is\npaired.",
       "type": "object",
       "properties": {
         "data": {
@@ -1184,6 +1220,7 @@
       ]
     },
     "HelloAck": {
+      "description": "`proof` and `desktop_nonce` are both present or both absent, and neither\nmay be `null`: the nonce\nexists only so the robot can prove itself back, which it does only after\nthe desktop's proof verified.",
       "type": "object",
       "properties": {
         "accepted": {
@@ -1192,16 +1229,13 @@
         "config": {
           "$ref": "#/$defs/DeviceConfig"
         },
+        "desktop_nonce": {
+          "description": "Fresh for every `hello_ack`; present exactly when `proof` is. The\nrobot's `session_proof` covers it.",
+          "$ref": "#/$defs/Nonce"
+        },
         "proof": {
           "description": "Present only when the robot reported `paired` and the desktop holds\nthe key.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Proof"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/Proof"
         },
         "session_id": {
           "anyOf": [
@@ -1215,6 +1249,14 @@
         }
       },
       "additionalProperties": false,
+      "dependentRequired": {
+        "desktop_nonce": [
+          "proof"
+        ],
+        "proof": [
+          "desktop_nonce"
+        ]
+      },
       "required": [
         "accepted",
         "config"
@@ -1353,6 +1395,19 @@
       "required": [
         "pose",
         "duration_ms"
+      ]
+    },
+    "SessionProof": {
+      "description": "The robot's proof that it holds the pair key, sent once as the first event\nof an authenticated session.",
+      "type": "object",
+      "properties": {
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "proof"
       ]
     },
     "SetExpression": {

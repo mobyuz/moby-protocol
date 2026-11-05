@@ -4,7 +4,10 @@ use common::{hex, rows};
 use hmac::{Hmac, KeyInit, Mac};
 use moby_protocol::{
     StableId,
-    usb::{ControlMessage, Nonce, PairKey, Proof, session_proof_input},
+    usb::{
+        ControlMessage, Nonce, PairKey, Proof, ROBOT_PROOF_LABEL, robot_proof_input,
+        session_proof_input,
+    },
 };
 use serde_json::{Value, json};
 use sha2::Sha256;
@@ -207,7 +210,7 @@ fn pairing_messages_follow_the_documented_sequence() {
     let ack = hello
         .acknowledge_hello(
             Some(StableId::new("session_1").unwrap()),
-            Some(&data.pair_key),
+            Some((&data.pair_key, Nonce::from_bytes([0x5a; 16]))),
             11,
         )
         .unwrap();
@@ -235,4 +238,267 @@ fn pairing_messages_follow_the_documented_sequence() {
         session,
         proof
     ));
+}
+
+fn id(text: &str) -> StableId {
+    StableId::new(text).unwrap()
+}
+
+fn nonce(text: &str) -> Nonce {
+    Nonce::try_from(text.to_owned()).unwrap()
+}
+
+#[test]
+fn robot_proofs_match_the_shared_vectors() {
+    let vectors = rows(include_str!("fixtures/robot-proof-vectors.tsv"));
+    assert!(vectors.len() >= 5);
+    for fields in vectors {
+        let [
+            name,
+            key,
+            desktop_nonce,
+            robot_nonce,
+            device,
+            session,
+            input,
+            proof,
+        ] = fields[..]
+        else {
+            panic!("invalid fixture: {fields:?}");
+        };
+        let key = PairKey::try_from(key.to_owned()).unwrap();
+        let (desktop_nonce, robot_nonce) = (nonce(desktop_nonce), nonce(robot_nonce));
+        let (device, session) = (id(device), id(session));
+        assert_eq!(
+            robot_proof_input(&desktop_nonce, &robot_nonce, &device, &session),
+            hex(input),
+            "{name}"
+        );
+        let computed = key.robot_session_proof(&desktop_nonce, &robot_nonce, &device, &session);
+        assert_eq!(computed.as_str(), proof, "{name}");
+        assert!(
+            key.verify_robot_session_proof(
+                &desktop_nonce,
+                &robot_nonce,
+                &device,
+                &session,
+                &computed
+            ),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn the_robot_proof_input_is_ordered_and_separated() {
+    let rows = rows(include_str!("fixtures/robot-proof-vectors.tsv"));
+    let proof_of = |name: &str| rows.iter().find(|row| row[0] == name).unwrap()[7];
+    assert_ne!(proof_of("separator_ab_c"), proof_of("separator_a_bc"));
+    assert_ne!(proof_of("robot_proof_1"), proof_of("nonces_swapped"));
+    let input = robot_proof_input(
+        &Nonce::from_bytes([1; 16]),
+        &Nonce::from_bytes([2; 16]),
+        &id("dev"),
+        &id("s"),
+    );
+    assert_eq!(&input[..ROBOT_PROOF_LABEL.len()], ROBOT_PROOF_LABEL);
+    assert_eq!(input[ROBOT_PROOF_LABEL.len()], 0);
+    assert_eq!(input.len(), 19 + 1 + 16 + 16 + 3 + 1 + 1);
+}
+
+#[test]
+fn a_robot_proof_binds_the_key_both_nonces_device_and_session() {
+    let key = test_key();
+    let (desktop_nonce, robot_nonce) = (Nonce::from_bytes([3; 16]), Nonce::from_bytes([4; 16]));
+    let (device, session) = (id("dev_one"), id("session_1"));
+    let proof = key.robot_session_proof(&desktop_nonce, &robot_nonce, &device, &session);
+    let other = Nonce::from_bytes([5; 16]);
+    let ok = |key: &PairKey, d: &Nonce, r: &Nonce, dev: &StableId, s: &StableId, p: &Proof| {
+        key.verify_robot_session_proof(d, r, dev, s, p)
+    };
+    assert!(ok(
+        &key,
+        &desktop_nonce,
+        &robot_nonce,
+        &device,
+        &session,
+        &proof
+    ));
+    let wrong_key = PairKey::from_bytes([9; 32]);
+    assert!(!ok(
+        &wrong_key,
+        &desktop_nonce,
+        &robot_nonce,
+        &device,
+        &session,
+        &proof
+    ));
+    assert!(!ok(&key, &other, &robot_nonce, &device, &session, &proof));
+    assert!(!ok(&key, &desktop_nonce, &other, &device, &session, &proof));
+    // The nonces are not interchangeable.
+    assert!(!ok(
+        &key,
+        &robot_nonce,
+        &desktop_nonce,
+        &device,
+        &session,
+        &proof
+    ));
+    assert!(!ok(
+        &key,
+        &desktop_nonce,
+        &robot_nonce,
+        &id("dev_two"),
+        &session,
+        &proof
+    ));
+    assert!(!ok(
+        &key,
+        &desktop_nonce,
+        &robot_nonce,
+        &device,
+        &id("session_2"),
+        &proof
+    ));
+    let mut flipped = proof.to_bytes();
+    flipped[0] ^= 0x80;
+    let flipped = Proof::from_bytes(flipped);
+    assert!(!ok(
+        &key,
+        &desktop_nonce,
+        &robot_nonce,
+        &device,
+        &session,
+        &flipped
+    ));
+    let zero = Proof::from_bytes([0; 32]);
+    assert!(!ok(
+        &key,
+        &desktop_nonce,
+        &robot_nonce,
+        &device,
+        &session,
+        &zero
+    ));
+}
+
+#[test]
+fn neither_proof_can_be_reflected_as_the_other() {
+    let vectors = rows(include_str!("fixtures/reflection-vectors.tsv"));
+    assert!(vectors.len() >= 3);
+    for fields in vectors {
+        let [
+            name,
+            key,
+            desktop_input,
+            desktop_proof,
+            robot_input,
+            robot_proof,
+            difference,
+        ] = fields[..]
+        else {
+            panic!("invalid fixture: {fields:?}");
+        };
+        let key = PairKey::try_from(key.to_owned()).unwrap();
+        assert_ne!(desktop_input, robot_input, "{name}");
+        assert_ne!(desktop_proof, robot_proof, "{name}");
+        for (input, proof) in [(desktop_input, desktop_proof), (robot_input, robot_proof)] {
+            let mut mac = Hmac::<Sha256>::new_from_slice(&key.to_bytes()).unwrap();
+            mac.update(&hex(input));
+            assert_eq!(mac.finalize().into_bytes().as_slice(), hex(proof), "{name}");
+        }
+        let first_difference = hex(desktop_input)
+            .iter()
+            .zip(hex(robot_input))
+            .take_while(|(a, b)| **a == *b)
+            .count();
+        assert_eq!(
+            first_difference,
+            difference.parse::<usize>().unwrap(),
+            "{name}"
+        );
+
+        // Presented as the other proof, each one fails verification.
+        let desktop = Proof::try_from(desktop_proof.to_owned()).unwrap();
+        let robot = Proof::try_from(robot_proof.to_owned()).unwrap();
+        let n = Nonce::from_bytes(hex(desktop_input)[..16].try_into().unwrap());
+        let (device, session) = (id("a"), id("b"));
+        assert!(!key.verify_robot_session_proof(&n, &n, &device, &session, &desktop));
+        assert!(!key.verify_session_proof(&n, &device, &session, &robot));
+    }
+    // The label has "-" at byte 16, where a desktop input holds the first
+    // character of a device ID, which is never "-".
+    assert_eq!(ROBOT_PROOF_LABEL[16], b'-');
+    assert!(StableId::new("-v1").is_err());
+}
+
+#[test]
+fn a_hello_ack_has_both_a_proof_and_a_nonce_or_neither() {
+    let ack = |data: Value| {
+        serde_json::from_value::<ControlMessage>(json!({
+            "v": 1, "kind": "response", "name": "hello_ack", "id": "e-0001", "ts_ms": 1,
+            "data": data
+        }))
+    };
+    let proof = "ab".repeat(32);
+    let desktop_nonce = "cd".repeat(16);
+    let base = json!({"accepted": true, "session_id": "session_1", "config": {}});
+    assert!(ack(base.clone()).is_ok());
+    let mut both = base.clone();
+    both["proof"] = json!(proof);
+    both["desktop_nonce"] = json!(desktop_nonce);
+    assert!(ack(both).is_ok());
+    for (proof_value, nonce_value) in [
+        (Some(json!(proof)), None),
+        (None, Some(json!(desktop_nonce))),
+        (Some(json!(null)), Some(json!(desktop_nonce))),
+        (Some(json!(proof)), Some(json!(null))),
+        (Some(json!(null)), Some(json!(null))),
+        (Some(json!(proof)), Some(json!("cd".repeat(15)))),
+        (Some(json!(proof)), Some(json!("CD".repeat(16)))),
+    ] {
+        let mut data = base.clone();
+        if let Some(value) = proof_value {
+            data["proof"] = value;
+        }
+        if let Some(value) = nonce_value {
+            data["desktop_nonce"] = value;
+        }
+        assert!(ack(data.clone()).is_err(), "{data}");
+    }
+}
+
+#[test]
+fn the_robot_proof_is_a_robot_event_with_one_field() {
+    let proof = "ab".repeat(32);
+    let event = |data: Value| {
+        serde_json::from_value::<ControlMessage>(json!({
+            "v": 1, "kind": "event", "name": "session_proof", "id": "e-0001", "ts_ms": 1,
+            "data": data
+        }))
+    };
+    let parsed = event(json!({"proof": proof})).unwrap();
+    assert_eq!(parsed.sender(), moby_protocol::usb::Peer::Robot);
+    assert_eq!(parsed.name(), "session_proof");
+    assert!(parsed.respond_ok(1).is_none());
+    assert!(event(json!({})).is_err());
+    assert!(event(json!({"proof": null})).is_err());
+    assert!(event(json!({"proof": proof, "extra": 1})).is_err());
+    assert!(event(json!({"proof": "ab".repeat(31)})).is_err());
+}
+
+#[test]
+fn the_helpers_never_print_the_key() {
+    let key = test_key();
+    let proof = key.robot_session_proof(
+        &Nonce::from_bytes([1; 16]),
+        &Nonce::from_bytes([2; 16]),
+        &id("dev"),
+        &id("s"),
+    );
+    let text = format!("{key:?} {key:#?} {proof:?}");
+    assert!(
+        !text.contains(KEY_HEX) && !text.contains("0102030405"),
+        "{text}"
+    );
 }

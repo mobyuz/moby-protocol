@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AudioEnd, AudioPlay, AudioStart, ButtonEvent, Cancel, DeviceConfig, DisplayText, Empty,
-    ErrorCode, ErrorDetail, ErrorInfo, Heartbeat, Hello, HelloAck, MuteChanged, PairBegin, PairKey,
-    PairSetKey, ServoPose, SetExpression, WakeDetected,
+    ErrorCode, ErrorDetail, ErrorInfo, Heartbeat, Hello, HelloAck, MuteChanged, Nonce, PairBegin,
+    PairKey, PairSetKey, ServoPose, SessionProof, SetExpression, WakeDetected,
 };
 use crate::StableId;
 
@@ -154,7 +154,11 @@ control_messages! {
     PairButtonConfirmed = "pair_button_confirmed", EventKind, Robot, Empty;
     /// A 10 s long press wiped the robot's pairing key.
     PairReset = "pair_reset", EventKind, Robot, Empty;
-    /// The response to `hello`, carrying a proof when the robot is paired.
+    /// The robot's proof that it holds the pair key. It is the first event of a
+    /// session whose desktop proof verified, and never otherwise.
+    SessionProof = "session_proof", EventKind, Robot, SessionProof;
+    /// The response to `hello`, carrying a proof and a nonce when the robot is
+    /// paired.
     HelloAck = "hello_ack", ResponseKind, Desktop, HelloAck;
     Expression = "expression", CommandKind, Desktop, SetExpression;
     DisplayText = "display_text", CommandKind, Desktop, DisplayText;
@@ -189,23 +193,26 @@ impl ControlMessage {
 
     /// Make a correlated response. The desktop supplies a session ID only
     /// when its local admission policy allows the device. Pass the pair key
-    /// to prove the session to a robot that reported `paired`; without it, or
-    /// for an unpaired robot, the acknowledgement carries no proof.
+    /// and a fresh random nonce to prove the session to a robot that reported
+    /// `paired`; without them, or for an unpaired robot, the acknowledgement
+    /// carries neither `proof` nor `desktop_nonce`. The nonce must be new for
+    /// every call, and the library makes no random bytes.
     pub fn acknowledge_hello(
         &self,
         session_id: Option<StableId>,
-        pair_key: Option<&PairKey>,
+        pair: Option<(&PairKey, Nonce)>,
         ts_ms: u32,
     ) -> Option<Self> {
         let Self::Hello { v, id, data, .. } = self else {
             return None;
         };
         let session_id = session_id.filter(|_| data.supports_protocol());
-        let proof = match (pair_key, &session_id) {
-            (Some(key), Some(session_id)) if data.paired => {
-                Some(key.session_proof(&data.nonce, &data.device_id, session_id))
-            }
-            _ => None,
+        let (proof, desktop_nonce) = match (pair, &session_id) {
+            (Some((key, desktop_nonce)), Some(session_id)) if data.paired => (
+                Some(key.session_proof(&data.nonce, &data.device_id, session_id)),
+                Some(desktop_nonce),
+            ),
+            _ => (None, None),
         };
         Some(Self::HelloAck {
             v: *v,
@@ -216,6 +223,7 @@ impl ControlMessage {
                 accepted: session_id.is_some(),
                 session_id,
                 proof,
+                desktop_nonce,
                 config: DeviceConfig::default(),
             },
         })

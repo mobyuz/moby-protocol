@@ -51,11 +51,23 @@ const KEY = Buffer.from(Array.from({ length: 32 }, (_, index) => index)).toStrin
 const DEVICE = "dev_123e4567-e89b-42d3-a456-426614174000";
 const NONCE = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
 const NONCE_PAIRED = "00112233445566778899aabbccddeeff";
+const DESKTOP_NONCE = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
 const SESSION = "session_1";
 
 function proof(nonce, device, session) {
   const input = Buffer.concat([
     Buffer.from(nonce, "hex"), Buffer.from(device), Buffer.from([0]), Buffer.from(session),
+  ]);
+  return { input, mac: createHmac("sha256", Buffer.from(KEY, "hex")).update(input).digest() };
+}
+
+// The robot's proof. The label keeps it apart from the desktop proof, whose
+// input starts with a nonce and then a device ID (an ID never starts with "-").
+const ROBOT_LABEL = "moby-robot-proof-v1";
+function robotProof(desktopNonce, robotNonce, device, session) {
+  const input = Buffer.concat([
+    Buffer.from(ROBOT_LABEL), Buffer.from([0]), Buffer.from(desktopNonce, "hex"),
+    Buffer.from(robotNonce, "hex"), Buffer.from(device), Buffer.from([0]), Buffer.from(session),
   ]);
   return { input, mac: createHmac("sha256", Buffer.from(KEY, "hex")).update(input).digest() };
 }
@@ -97,6 +109,7 @@ ok("hello_ack", ack("e-0001", { accepted: true, session_id: SESSION, config: {} 
 ok("hello_ack_proof", ack("e-0002", {
   accepted: true, session_id: SESSION, config: {},
   proof: proof(NONCE_PAIRED, DEVICE, SESSION).mac.toString("hex"),
+  desktop_nonce: DESKTOP_NONCE,
 }));
 ok("hello_ack_rejected", ack("e-0001", { accepted: false, config: {} }));
 ok("heartbeat", event("heartbeat", { state: "muted", mute: true, uptime_ms: 2010 }));
@@ -128,6 +141,9 @@ ok("pair_begin", command("pair_begin", { timeout_ms: 30000 }));
 ok("pair_set_key", command("pair_set_key", { pair_key: KEY }));
 ok("command_ok", response("command_ok", {}));
 ok("command_error", response("command_error", errorInfo));
+ok("session_proof", event("session_proof", {
+  proof: robotProof(DESKTOP_NONCE, NONCE_PAIRED, DEVICE, SESSION).mac.toString("hex"),
+}));
 
 const expression = command("expression", { state: "idle", animation: "blink", duration_ms: 0 });
 bad("unknown_name", command("reboot", {}));
@@ -148,6 +164,32 @@ bad("hello_version_has_space", withData(event("hello", hello), { fw_version: "0.
 bad("hello_nonce_short", withData(event("hello", hello), { nonce: NONCE.slice(2) }));
 bad("hello_nonce_uppercase", withData(event("hello", hello), { nonce: NONCE.toUpperCase() }));
 bad("hello_ack_proof_short", response("hello_ack", { accepted: true, session_id: SESSION, config: {}, proof: "ab".repeat(31) }));
+const ackWithProof = response("hello_ack", {
+  accepted: true, session_id: SESSION, config: {},
+  proof: proof(NONCE_PAIRED, DEVICE, SESSION).mac.toString("hex"), desktop_nonce: DESKTOP_NONCE,
+});
+const withoutField = (message, field) => ({ ...message, data: (({ [field]: _, ...rest }) => rest)(message.data) });
+bad("hello_ack_proof_without_nonce", withoutField(ackWithProof, "desktop_nonce"));
+bad("hello_ack_nonce_without_proof", withoutField(ackWithProof, "proof"));
+bad("hello_ack_nonce_alone", response("hello_ack", { accepted: true, session_id: SESSION, config: {}, desktop_nonce: DESKTOP_NONCE }));
+bad("hello_ack_proof_null_with_nonce", withData(ackWithProof, { proof: null }));
+bad("hello_ack_nonce_null_with_proof", withData(ackWithProof, { desktop_nonce: null }));
+bad("hello_ack_proof_and_nonce_null", withData(ackWithProof, { proof: null, desktop_nonce: null }));
+bad("hello_ack_nonce_short", withData(ackWithProof, { desktop_nonce: DESKTOP_NONCE.slice(2) }));
+bad("hello_ack_nonce_long", withData(ackWithProof, { desktop_nonce: DESKTOP_NONCE + "00" }));
+bad("hello_ack_nonce_uppercase", withData(ackWithProof, { desktop_nonce: DESKTOP_NONCE.toUpperCase() }));
+bad("hello_ack_nonce_not_hex", withData(ackWithProof, { desktop_nonce: "g" + DESKTOP_NONCE.slice(1) }));
+bad("hello_ack_nonce_trailing_newline", withData(ackWithProof, { desktop_nonce: DESKTOP_NONCE + "\n" }));
+const sessionProof = event("session_proof", { proof: robotProof(DESKTOP_NONCE, NONCE_PAIRED, DEVICE, SESSION).mac.toString("hex") });
+bad("session_proof_missing_proof", withoutField(sessionProof, "proof"));
+bad("session_proof_null", withData(sessionProof, { proof: null }));
+bad("session_proof_short", withData(sessionProof, { proof: sessionProof.data.proof.slice(2) }));
+bad("session_proof_long", withData(sessionProof, { proof: sessionProof.data.proof + "00" }));
+bad("session_proof_uppercase", withData(sessionProof, { proof: sessionProof.data.proof.toUpperCase() }));
+bad("session_proof_not_hex", withData(sessionProof, { proof: "g" + sessionProof.data.proof.slice(1) }));
+bad("session_proof_extra_field", withData(sessionProof, { desktop_nonce: DESKTOP_NONCE }));
+bad("session_proof_as_command", { ...sessionProof, kind: "command" });
+bad("session_proof_as_response", { ...sessionProof, kind: "response" });
 bad("heartbeat_uptime_negative", event("heartbeat", { state: "idle", mute: false, uptime_ms: -1 }));
 bad("heartbeat_uptime_overflow", event("heartbeat", { state: "idle", mute: false, uptime_ms: 2 ** 32 }));
 bad("heartbeat_unknown_state", event("heartbeat", { state: "asleep", mute: false, uptime_ms: 1 }));
@@ -278,11 +320,56 @@ function proofRows() {
   ];
 }
 
+function robotProofRows() {
+  const cases = [
+    ["robot_proof_1", DESKTOP_NONCE, NONCE_PAIRED, DEVICE, SESSION],
+    ["robot_proof_2", NONCE, "a1b2c3d4e5f60718293a4b5c6d7e8f90", "dev_00000000-0000-4000-8000-000000000000", "session_with-long_id_0123456789"],
+    // The nonces are ordered: swapping them changes the proof.
+    ["nonces_swapped", NONCE_PAIRED, DESKTOP_NONCE, DEVICE, SESSION],
+    // Device "ab" with session "c" must differ from device "a" with session "bc".
+    ["separator_ab_c", DESKTOP_NONCE, NONCE, "ab", "c"],
+    ["separator_a_bc", DESKTOP_NONCE, NONCE, "a", "bc"],
+  ];
+  return [
+    "# name	key_hex	desktop_nonce_hex	robot_nonce_hex	device_id	session_id	input_hex	proof_hex",
+    ...cases.map(([name, desktopNonce, robotNonce, device, session]) => {
+      const { input, mac } = robotProof(desktopNonce, robotNonce, device, session);
+      return [name, KEY, desktopNonce, robotNonce, device, session, input.toString("hex"), mac.toString("hex")].join("	");
+    }),
+  ];
+}
+
+// Neither proof can be presented as the other. Each row gives a desktop proof
+// input and a robot proof input; they must differ, and so must the proofs.
+// "attacker_nonce" is a hostile robot that picks the first 16 bytes of the
+// label as its nonce so the two inputs agree as long as possible: they still
+// differ at byte 16, where the label has "-" and a device ID has a letter.
+function reflectionRows() {
+  const labelNonce = Buffer.from(ROBOT_LABEL).subarray(0, 16).toString("hex");
+  const cases = [
+    ["same_values_both_ways", NONCE_PAIRED, NONCE_PAIRED, NONCE_PAIRED, DEVICE, SESSION],
+    ["desktop_nonce_as_robot_nonce", NONCE_PAIRED, DESKTOP_NONCE, NONCE_PAIRED, DEVICE, SESSION],
+    ["attacker_nonce", labelNonce, DESKTOP_NONCE, labelNonce, "a", "b"],
+  ];
+  return [
+    "# name	key_hex	desktop_input_hex	desktop_proof_hex	robot_input_hex	robot_proof_hex	first_difference",
+    ...cases.map(([name, helloNonce, desktopNonce, robotNonce, device, session]) => {
+      const desktop = proof(helloNonce, device, session);
+      const robot = robotProof(desktopNonce, robotNonce, device, session);
+      let difference = 0;
+      while (difference < desktop.input.length && difference < robot.input.length && desktop.input[difference] === robot.input[difference]) difference++;
+      return [name, KEY, desktop.input.toString("hex"), desktop.mac.toString("hex"), robot.input.toString("hex"), robot.mac.toString("hex"), difference].join("	");
+    }),
+  ];
+}
+
 const outputs = {
   "control-vectors.tsv": controlRows(),
   "cobs-vectors.tsv": cobsRows(),
   "hmac-vectors.tsv": hmacRows(),
   "proof-vectors.tsv": proofRows(),
+  "robot-proof-vectors.tsv": robotProofRows(),
+  "reflection-vectors.tsv": reflectionRows(),
   "transition-vectors.tsv": transitionRows(),
 };
 

@@ -120,7 +120,14 @@ export type HelloAck = { accepted: boolean, session_id?: StableId | null,
  * Present only when the robot reported `paired` and the desktop holds
  * the key.
  */
-proof?: Proof | null, config: DeviceConfig, };
+proof?: Proof, 
+/**
+ * Fresh for every `hello_ack`; present exactly when `proof` is. The
+ * robot's `session_proof` covers it.
+ */
+desktop_nonce?: Nonce, config: DeviceConfig, };
+
+export type SessionProof = { proof: Proof, };
 
 export type Heartbeat = { state: Expression, mute: boolean, uptime_ms: number, };
 
@@ -168,7 +175,7 @@ export type PairBegin = { timeout_ms: PairTimeoutMs, };
 
 export type PairSetKey = { pair_key: PairKey, };
 
-export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, } | { "name": "wake_detected", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: WakeDetected, } | { "name": "button_event", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ButtonEvent, } | { "name": "mute_changed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: MuteChanged, } | { "name": "audio_start", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioStart, } | { "name": "audio_end", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioEnd, } | { "name": "error", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ErrorInfo, } | { "name": "pair_button_confirmed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "pair_reset", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "expression", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: SetExpression, } | { "name": "display_text", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DisplayText, } | { "name": "audio_play_start", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "audio_play_end", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "cancel", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: Cancel, } | { "name": "set_config", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DeviceConfig, } | { "name": "servo_pose", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: ServoPose, } | { "name": "pair_begin", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairBegin, } | { "name": "pair_set_key", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairSetKey, } | { "name": "command_ok", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "command_error", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: ErrorInfo, };
+export type ControlMessage = { "name": "hello", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Hello, } | { "name": "heartbeat", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Heartbeat, } | { "name": "wake_detected", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: WakeDetected, } | { "name": "button_event", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ButtonEvent, } | { "name": "mute_changed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: MuteChanged, } | { "name": "audio_start", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioStart, } | { "name": "audio_end", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: AudioEnd, } | { "name": "error", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: ErrorInfo, } | { "name": "pair_button_confirmed", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "pair_reset", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "session_proof", v: ControlVersion, kind: EventKind, id: StableId, ts_ms: number, data: SessionProof, } | { "name": "hello_ack", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: HelloAck, } | { "name": "expression", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: SetExpression, } | { "name": "display_text", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DisplayText, } | { "name": "audio_play_start", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "audio_play_end", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: AudioPlay, } | { "name": "cancel", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: Cancel, } | { "name": "set_config", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: DeviceConfig, } | { "name": "servo_pose", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: ServoPose, } | { "name": "pair_begin", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairBegin, } | { "name": "pair_set_key", v: ControlVersion, kind: CommandKind, id: StableId, ts_ms: number, data: PairSetKey, } | { "name": "command_ok", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: Empty, } | { "name": "command_error", v: ControlVersion, kind: ResponseKind, id: StableId, ts_ms: number, data: ErrorInfo, };
 
 export const PACKAGE_VERSION = "0.2.0" as const;
 
@@ -206,6 +213,7 @@ export const CONTROL_MESSAGES = [
   { name: "error", kind: "event", sender: "robot" },
   { name: "pair_button_confirmed", kind: "event", sender: "robot" },
   { name: "pair_reset", kind: "event", sender: "robot" },
+  { name: "session_proof", kind: "event", sender: "robot" },
   { name: "hello_ack", kind: "response", sender: "desktop" },
   { name: "expression", kind: "command", sender: "desktop" },
   { name: "display_text", kind: "command", sender: "desktop" },

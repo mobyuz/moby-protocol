@@ -136,6 +136,16 @@ fn c_protocol_definitions() -> Result<String> {
         "#define MOBY_USB_PAIR_KEY_BYTES {}u",
         usb::PairKey::BYTES
     )?;
+    writeln!(
+        text,
+        "#define MOBY_USB_ROBOT_PROOF_LABEL {:?}",
+        std::str::from_utf8(usb::ROBOT_PROOF_LABEL)?
+    )?;
+    writeln!(
+        text,
+        "#define MOBY_USB_ROBOT_PROOF_LABEL_LEN {}u",
+        usb::ROBOT_PROOF_LABEL.len()
+    )?;
 
     text.push_str(
         "
@@ -296,6 +306,7 @@ fn artifacts() -> Result<Vec<(String, String)>> {
     export!(usb::DeviceConfig);
     export!(usb::Hello);
     export!(usb::HelloAck);
+    export!(usb::SessionProof);
     export!(usb::Heartbeat);
     export!(usb::WakeDetected);
     export!(usb::Button);

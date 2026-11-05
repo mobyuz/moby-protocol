@@ -138,9 +138,17 @@ impl Hello {
     }
 }
 
+/// `proof` and `desktop_nonce` are both present or both absent, and neither
+/// may be `null`: the nonce
+/// exists only so the robot can prove itself back, which it does only after
+/// the desktop's proof verified.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "generate", derive(ts_rs::TS))]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "HelloAckFields", deny_unknown_fields)]
+#[schemars(
+    !try_from,
+    extend("dependentRequired" = {"proof": ["desktop_nonce"], "desktop_nonce": ["proof"]})
+)]
 pub struct HelloAck {
     pub accepted: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -149,9 +157,62 @@ pub struct HelloAck {
     /// Present only when the robot reported `paired` and the desktop holds
     /// the key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "generate", ts(optional = nullable))]
+    #[schemars(with = "Proof")]
+    #[cfg_attr(feature = "generate", ts(optional))]
     pub proof: Option<Proof>,
+    /// Fresh for every `hello_ack`; present exactly when `proof` is. The
+    /// robot's `session_proof` covers it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Nonce")]
+    #[cfg_attr(feature = "generate", ts(optional))]
+    pub desktop_nonce: Option<Nonce>,
     pub config: DeviceConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HelloAckFields {
+    accepted: bool,
+    #[serde(default)]
+    session_id: Option<StableId>,
+    #[serde(default, deserialize_with = "present")]
+    proof: Option<Proof>,
+    #[serde(default, deserialize_with = "present")]
+    desktop_nonce: Option<Nonce>,
+    config: DeviceConfig,
+}
+
+/// A field that is either absent or a real value, never `null`.
+fn present<'de, T: Deserialize<'de>, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
+}
+
+impl TryFrom<HelloAckFields> for HelloAck {
+    type Error = &'static str;
+
+    fn try_from(fields: HelloAckFields) -> Result<Self, Self::Error> {
+        if fields.proof.is_some() != fields.desktop_nonce.is_some() {
+            return Err("proof and desktop_nonce must be present together");
+        }
+        Ok(Self {
+            accepted: fields.accepted,
+            session_id: fields.session_id,
+            proof: fields.proof,
+            desktop_nonce: fields.desktop_nonce,
+            config: fields.config,
+        })
+    }
+}
+
+/// The robot's proof that it holds the pair key, sent once as the first event
+/// of an authenticated session.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate", derive(ts_rs::TS))]
+#[serde(deny_unknown_fields)]
+pub struct SessionProof {
+    pub proof: Proof,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

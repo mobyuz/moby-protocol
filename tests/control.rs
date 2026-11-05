@@ -115,7 +115,7 @@ fn control_vectors_are_framed_and_judged_as_labeled() {
 #[test]
 fn every_message_name_has_a_positive_vector_and_the_catalog_matches_the_wire() {
     let valid = valid_messages();
-    assert_eq!(MESSAGES.len(), 22);
+    assert_eq!(MESSAGES.len(), 23);
     for info in MESSAGES {
         let samples: Vec<_> = valid
             .iter()
@@ -158,7 +158,7 @@ fn events_come_from_the_robot_and_commands_from_the_desktop() {
         .iter()
         .filter(|info| info.kind == "event")
         .collect();
-    assert_eq!(events.len(), 10);
+    assert_eq!(events.len(), 11);
     assert_eq!(
         MESSAGES
             .iter()
@@ -177,10 +177,11 @@ fn events_come_from_the_robot_and_commands_from_the_desktop() {
 
 #[test]
 fn every_valid_message_rejects_extra_fields_other_kinds_and_missing_fields() {
-    // Fields the robot or desktop may leave out.
+    // Fields the robot or desktop may leave out. `proof` and `desktop_nonce`
+    // are not here: removing one of the pair is invalid, and the session_proof
+    // event needs its proof.
     let optional = [
         "session_id",
-        "proof",
         "wake_sensitivity",
         "speaker_volume",
         "vad_silence_ms",
